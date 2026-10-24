@@ -1,4 +1,4 @@
-// Command zube is a small Minecraft style voxel game built on raylib.
+// Command goxel is a small Minecraft style voxel game built on raylib.
 package main
 
 import (
@@ -17,7 +17,7 @@ func main() {
 	quietWaylandWarnings()
 	// High DPI makes raylib size its viewport from the real framebuffer on scaled displays.
 	rl.SetConfigFlags(rl.FlagMsaa4xHint | rl.FlagVsyncHint | rl.FlagWindowResizable | rl.FlagWindowHighdpi)
-	rl.InitWindow(windowWidth, windowHeight, "zube")
+	rl.InitWindow(windowWidth, windowHeight, "goxel")
 	defer rl.CloseWindow()
 	rl.DisableCursor()
 

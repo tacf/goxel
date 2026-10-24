@@ -1,4 +1,4 @@
-# Zube (Go)
+# goxel (Go)
 
 A small Minecraft style voxel game written in Go with raylib.
 

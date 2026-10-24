@@ -1,6 +1,6 @@
 package main
 
-import "zube/internal/fastnoise"
+import "goxel/internal/fastnoise"
 
 // hash mixes a 2D integer coordinate and a seed into 32 random bits.
 // It drives per pixel speckles, tree placement and per block brightness.

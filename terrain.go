@@ -1,6 +1,6 @@
 package main
 
-import "zube/internal/fastnoise"
+import "goxel/internal/fastnoise"
 
 const sandLevel = 23
 
