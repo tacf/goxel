@@ -22,8 +22,15 @@ const (
 	TileWoodTop
 	TilePlanks
 	TileLeaves
-	tileCount
+	TileCount
 )
+
+var tileNames = [...]string{
+	"Grass top", "Grass side", "Dirt", "Stone", "Cobblestone",
+	"Sand", "Wood side", "Wood top", "Planks", "Leaves",
+}
+
+func (t Tile) String() string { return tileNames[t] }
 
 type Rect struct{ U0, V0, U1, V1 float32 }
 
@@ -40,8 +47,8 @@ func tileOrigin(t Tile) (x, y int) {
 	return int(t) % AtlasCols * TileSize, int(t) / AtlasCols * TileSize
 }
 
-// tilePixels is the pixel rectangle of a tile (x, y, w, h), for 2D drawing.
-func tilePixels(t Tile) [4]float32 {
+// TilePixels is the pixel rectangle of a tile (x, y, w, h), for 2D drawing.
+func TilePixels(t Tile) [4]float32 {
 	x, y := tileOrigin(t)
 	return [4]float32{float32(x), float32(y), TileSize, TileSize}
 }
@@ -50,8 +57,8 @@ func tilePixels(t Tile) [4]float32 {
 // Layer i belongs to Tile(i) and is what the tile array texture stores.
 func tileLayers(atlas []byte) []byte {
 	const row = TileSize * 4
-	layers := make([]byte, 0, int(tileCount)*TileSize*row)
-	for t := range tileCount {
+	layers := make([]byte, 0, int(TileCount)*TileSize*row)
+	for t := range TileCount {
 		ox, oy := tileOrigin(t)
 		for y := range TileSize {
 			start := ((oy+y)*AtlasSize + ox) * 4
@@ -92,11 +99,11 @@ func newTexGen() *texGen {
 	}
 }
 
-// generateAtlas fills an RGBA atlas with every procedural tile.
-func generateAtlas(pixels []byte) {
+// GenerateAtlas fills an RGBA atlas with every procedural tile.
+func GenerateAtlas(pixels []byte) {
 	clear(pixels)
 	g := newTexGen()
-	for t := range tileCount {
+	for t := range TileCount {
 		ox, oy := tileOrigin(t)
 		for py := range TileSize {
 			for px := range TileSize {

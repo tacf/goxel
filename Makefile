@@ -4,7 +4,7 @@ NAME = goxel
 OUTPUT_FOLDER = bin
 
 .DEFAULT_GOAL := help
-.PHONY: help build run release test clean
+.PHONY: help build run release test textures clean
 
 help:
 	@printf '%s\n' \
@@ -12,6 +12,7 @@ help:
 	  'make run        - build and run the game' \
 	  'make release    - build a stripped binary' \
 	  'make test       - run unit tests' \
+	  'make texview    - browse the generated textures' \
 	  'make clean      - remove the built binary' \
 	  'make run ARGS="..."  - forward command line arguments'
 
@@ -27,6 +28,9 @@ run: base
 
 release: base
 	GOWORK=off go build -ldflags="-s -w" -o $(OUTPUT_FOLDER)/$(NAME) ./cmd/goxel.go
+
+texview:
+	GOWORK=off go run ./cmd/texview
 
 test: base
 	export GOWORK=off

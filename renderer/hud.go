@@ -40,7 +40,7 @@ func (r *Renderer) drawHotbar(s *game.Session, w, h int32) {
 	for i, item := range game.Hotbar {
 		rl.DrawRectangle(x, y, hotbarSlot, hotbarSlot, shadow)
 		if item.Kind == game.ItemBlock {
-			src := tilePixels(iconTile(item.Block))
+			src := TilePixels(iconTile(item.Block))
 			rl.DrawTexturePro(
 				r.atlas,
 				rl.NewRectangle(src[0], src[1], src[2], src[3]),

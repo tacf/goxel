@@ -13,6 +13,8 @@ const (
 	Leaves
 	Planks
 	Cobble
+	// BlockCount is the number of block types, Air included.
+	BlockCount
 )
 
 var blockNames = [...]string{"Air", "Grass", "Dirt", "Stone", "Sand", "Wood", "Leaves", "Planks", "Cobblestone"}

@@ -33,8 +33,8 @@ type Renderer struct {
 // New loads the GPU resources. The window must already exist.
 func New() *Renderer {
 	pixels := make([]byte, AtlasBytes)
-	generateAtlas(pixels)
-	tiles, err := NewTileArray(tileLayers(pixels), TileSize, int(tileCount))
+	GenerateAtlas(pixels)
+	tiles, err := NewTileArray(tileLayers(pixels), TileSize, int(TileCount))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -49,7 +49,7 @@ func New() *Renderer {
 		material: material,
 		shader:   shader,
 		tiles:    tiles,
-		atlas:    loadAtlas(pixels),
+		atlas:    LoadAtlas(pixels),
 	}
 }
 
@@ -100,8 +100,8 @@ func (r *Renderer) Draw(s *game.Session) {
 	rl.EndDrawing()
 }
 
-// loadAtlas uploads the atlas for 2D drawing. It is sampled without filtering or mipmaps.
-func loadAtlas(pixels []byte) rl.Texture2D {
+// LoadAtlas uploads the atlas for 2D drawing. It is sampled without filtering or mipmaps.
+func LoadAtlas(pixels []byte) rl.Texture2D {
 	img := rl.NewImage(pixels, AtlasSize, AtlasSize, 1, rl.UncompressedR8g8b8a8)
 	atlas := rl.LoadTextureFromImage(img)
 	rl.SetTextureFilter(atlas, rl.FilterPoint)

@@ -7,9 +7,9 @@ import (
 
 func TestAtlasTilesAreOpaqueAndNotFlat(t *testing.T) {
 	pixels := make([]byte, AtlasBytes)
-	generateAtlas(pixels)
-	for tile := range tileCount {
-		r := tilePixels(tile)
+	GenerateAtlas(pixels)
+	for tile := range TileCount {
+		r := TilePixels(tile)
 		lo, hi := byte(255), byte(0)
 		for y := range TileSize {
 			for x := range TileSize {
@@ -28,8 +28,8 @@ func TestAtlasTilesAreOpaqueAndNotFlat(t *testing.T) {
 
 func TestAtlasDeterministic(t *testing.T) {
 	a, b := make([]byte, AtlasBytes), make([]byte, AtlasBytes)
-	generateAtlas(a)
-	generateAtlas(b)
+	GenerateAtlas(a)
+	GenerateAtlas(b)
 	if !bytes.Equal(a, b) {
 		t.Error("atlas differs between runs")
 	}
@@ -37,13 +37,13 @@ func TestAtlasDeterministic(t *testing.T) {
 
 func TestTileLayersMatchAtlasTiles(t *testing.T) {
 	atlas := make([]byte, AtlasBytes)
-	generateAtlas(atlas)
+	GenerateAtlas(atlas)
 	layers := tileLayers(atlas)
 	const layerBytes = TileSize * TileSize * 4
-	if len(layers) != int(tileCount)*layerBytes {
-		t.Fatalf("got %d bytes, want %d layers of %d", len(layers), tileCount, layerBytes)
+	if len(layers) != int(TileCount)*layerBytes {
+		t.Fatalf("got %d bytes, want %d layers of %d", len(layers), TileCount, layerBytes)
 	}
-	for tile := range tileCount {
+	for tile := range TileCount {
 		ox, oy := tileOrigin(tile)
 		layer := layers[int(tile)*layerBytes:][:layerBytes]
 		for y := range TileSize {

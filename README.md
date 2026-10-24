@@ -15,6 +15,7 @@ Needs Go 1.27 and a C compiler, since raylib is built from source through cgo.
 make run        # Build and run
 make release    # Stripped binary
 make test       # Unit tests
+make texview    # Browse the generated textures
 ```
 
 Without `make`, use `go run .`, `go build` and `go test ./...`.
@@ -49,3 +50,5 @@ All block textures are generated at startup in `textures.go`, with no image
 files. The world draws them from an OpenGL array texture with one layer per
 tile, so filtering and mipmaps never bleed between neighbouring tiles. A
 packed atlas is kept for the hotbar icons and the held block.
+
+Textures can be visualized through `cmd/texview`. Or simply run `make texview`
