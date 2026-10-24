@@ -18,7 +18,7 @@ func TestTerrainDeterministicAndLayered(t *testing.T) {
 	if !slices.Equal(a.blocks, b.blocks) {
 		t.Fatal("same seed produced different terrain")
 	}
-	h := columnHeight(50, 50, 1)
+	h := newTerrain(1).height(50, 50)
 	if a.Get(50, h-6, 50) != Stone {
 		t.Error("expected stone below the surface layers")
 	}

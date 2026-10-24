@@ -30,6 +30,10 @@ Without `make`, use `go run .`, `go build` and `go test ./...`.
 | F3                    | Toggle debug text                                 |
 | Esc                   | Quit                                              |
 
+## Noise
+
+Terrain and textures use FastNoiseLite, vendored unmodified in `internal/fastnoise`. The terrain is fractal OpenSimplex2 noise. Each 16 by 16 texture tile is painted from fractal value noise that repeats every tile, so neighbouring blocks join without seams. Cobblestone adds warped Voronoi cells with mortar lines.
+
 ## Textures
 
-All block textures are generated at startup in `textures.go`, with no image files. Each 16 by 16 tile is built from tiling value noise, fractal noise and Worley (Voronoi) noise. For example cobblestone uses warped Voronoi cells with mortar lines, and grass layers fractal noise with blade streaks. The world draws them from an OpenGL array texture with one layer per tile, so filtering and mipmaps never bleed between neighbouring tiles. A packed atlas is kept for the hotbar icons and the held block.
+All block textures are generated at startup in `textures.go`, with no image files. The world draws them from an OpenGL array texture with one layer per tile, so filtering and mipmaps never bleed between neighbouring tiles. A packed atlas is kept for the hotbar icons and the held block.

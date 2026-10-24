@@ -61,14 +61,44 @@ func tileLayers(atlas []byte) []byte {
 
 type color3 [3]float32
 
+// texGen holds the noise generators the tile painters draw from.
+type texGen struct {
+	grass, blade, dirt, stone, vein        *tileNoise
+	warpX, warpY, grain                    *tileNoise
+	sand, streak, bark, rings, plank, leaf *tileNoise
+}
+
+func newTexGen() *texGen {
+	return &texGen{
+		grass: newTileNoise(11, 2, 2, 3),
+		// Stretched vertically so it reads as blades of grass.
+		blade: newTileNoise(12, 16, 4, 1),
+		dirt:  newTileNoise(21, 4, 4, 2),
+		stone: newTileNoise(41, 4, 4, 3),
+		vein:  newTileNoise(42, 3, 3, 2),
+		warpX: newTileNoise(51, 3, 3, 2),
+		warpY: newTileNoise(52, 3, 3, 2),
+		grain: newTileNoise(55, 8, 8, 2),
+		sand:  newTileNoise(61, 8, 8, 2),
+		// Stretched vertically for the streaks of bark.
+		streak: newTileNoise(71, 8, 2, 1),
+		bark:   newTileNoise(72, 4, 4, 2),
+		rings:  newTileNoise(74, 4, 4, 2),
+		// Stretched horizontally for the grain along a board.
+		plank: newTileNoise(82, 2, 16, 1),
+		leaf:  newTileNoise(91, 4, 4, 2),
+	}
+}
+
 // generateAtlas fills an RGBA atlas with every procedural tile.
 func generateAtlas(pixels []byte) {
 	clear(pixels)
+	g := newTexGen()
 	for t := range tileCount {
 		ox, oy := tileOrigin(t)
 		for py := range TileSize {
 			for px := range TileSize {
-				c := tilePixel(t, px, py)
+				c := g.tilePixel(t, px, py)
 				at := ((oy+py)*AtlasSize + ox + px) * 4
 				for ch := range 3 {
 					pixels[at+ch] = byte(clamp(c[ch], 0, 255))
@@ -79,28 +109,28 @@ func generateAtlas(pixels []byte) {
 	}
 }
 
-func tilePixel(t Tile, px, py int) color3 {
+func (g *texGen) tilePixel(t Tile, px, py int) color3 {
 	switch t {
 	case TileGrassTop:
-		return grassTop(px, py)
+		return g.grassTop(px, py)
 	case TileGrassSide:
-		return grassSide(px, py)
+		return g.grassSide(px, py)
 	case TileDirt:
-		return dirtTile(px, py)
+		return g.dirtTile(px, py)
 	case TileStone:
-		return stoneTile(px, py)
+		return g.stoneTile(px, py)
 	case TileCobble:
-		return cobbleTile(px, py)
+		return g.cobbleTile(px, py)
 	case TileSand:
-		return sandTile(px, py)
+		return g.sandTile(px, py)
 	case TileWoodSide:
-		return woodSide(px, py)
+		return g.woodSide(px, py)
 	case TileWoodTop:
-		return woodTop(px, py)
+		return g.woodTop(px, py)
 	case TilePlanks:
-		return planksTile(px, py)
+		return g.planksTile(px, py)
 	default:
-		return leavesTile(px, py)
+		return g.leavesTile(px, py)
 	}
 }
 
@@ -127,42 +157,42 @@ func speckle(c color3, px, py int, seed uint32, dark, light float32) color3 {
 	return c
 }
 
-func grassTop(px, py int) color3 {
+func (g *texGen) grassTop(px, py int) color3 {
 	u, v := texel(px, py)
-	n := tilingFBM(u, v, 2, 3, 11)
+	n := g.grass.at(u, v)
 	c := mix(color3{60, 112, 34}, color3{118, 178, 64}, n)
 	// Short vertical streaks read as blades.
-	blade := valueNoise(u*16, v*4, 16, 4, 12)
+	blade := g.blade.at(u, v)
 	c = scale(c, 0.86+0.28*blade)
 	return speckle(c, px, py, 13, 0.78, 1.15)
 }
 
-func dirtTile(px, py int) color3 {
+func (g *texGen) dirtTile(px, py int) color3 {
 	u, v := texel(px, py)
-	n := tilingFBM(u, v, 4, 2, 21)
+	n := g.dirt.at(u, v)
 	c := scale(color3{134, 96, 67}, 0.82+0.34*n)
 	return speckle(c, px, py, 22, 0.72, 1.18)
 }
 
-func grassSide(px, py int) color3 {
+func (g *texGen) grassSide(px, py int) color3 {
 	// Ragged grass fringe over dirt.
 	fringe := 3 + int(hash(px, 0, 31)%3)
 	if py < fringe {
-		c := grassTop(px, py)
+		c := g.grassTop(px, py)
 		if py == fringe-1 {
 			return scale(c, 0.9)
 		}
 		return c
 	}
-	return dirtTile(px, py)
+	return g.dirtTile(px, py)
 }
 
-func stoneTile(px, py int) color3 {
+func (g *texGen) stoneTile(px, py int) color3 {
 	u, v := texel(px, py)
-	n := tilingFBM(u, v, 4, 3, 41)
+	n := g.stone.at(u, v)
 	c := scale(color3{126, 126, 130}, 0.8+0.4*n)
 	// Thin dark veins where a second noise field crosses its midpoint.
-	ridge := abs(tilingFBM(u, v, 3, 2, 42) - 0.5)
+	ridge := abs(g.vein.at(u, v) - 0.5)
 	if ridge < 0.03 {
 		c = scale(c, 0.76)
 	}
@@ -171,11 +201,11 @@ func stoneTile(px, py int) color3 {
 
 const cobbleCells = 3
 
-func cobbleTile(px, py int) color3 {
+func (g *texGen) cobbleTile(px, py int) color3 {
 	u, v := texel(px, py)
 	// Warp the sample point so stone outlines are irregular.
-	wx := (tilingFBM(u, v, 3, 2, 51) - 0.5) * 0.35
-	wy := (tilingFBM(u, v, 3, 2, 52) - 0.5) * 0.35
+	wx := (g.warpX.at(u, v) - 0.5) * 0.35
+	wy := (g.warpY.at(u, v) - 0.5) * 0.35
 	fx := u*cobbleCells + wx
 	fy := v*cobbleCells + wy
 	cx, cy := int(floor(fx)), int(floor(fy))
@@ -202,7 +232,7 @@ func cobbleTile(px, py int) color3 {
 		}
 	}
 
-	grain := 0.88 + 0.24*tilingFBM(u, v, 8, 2, 55)
+	grain := 0.88 + 0.24*g.grain.at(u, v)
 	edge := f2 - f1
 	if edge < 0.2 {
 		return scale(color3{58, 58, 62}, grain)
@@ -213,17 +243,17 @@ func cobbleTile(px, py int) color3 {
 	return speckle(scale(color3{tone, tone, tone + 4}, bevel*grain), px, py, 57, 0.85, 1.1)
 }
 
-func sandTile(px, py int) color3 {
+func (g *texGen) sandTile(px, py int) color3 {
 	u, v := texel(px, py)
-	n := tilingFBM(u, v, 8, 2, 61)
+	n := g.sand.at(u, v)
 	c := scale(color3{219, 207, 142}, 0.93+0.12*n)
 	return speckle(c, px, py, 62, 0.9, 1.05)
 }
 
-func woodSide(px, py int) color3 {
+func (g *texGen) woodSide(px, py int) color3 {
 	u, v := texel(px, py)
-	streak := valueNoise(u*8, v*2, 8, 2, 71)
-	n := tilingFBM(u, v, 4, 2, 72)
+	streak := g.streak.at(u, v)
+	n := g.bark.at(u, v)
 	c := scale(color3{104, 82, 50}, 0.72+0.34*streak+0.18*n)
 	// Dark bark grooves.
 	if hash(px, 0, 73)%5 == 0 {
@@ -232,11 +262,11 @@ func woodSide(px, py int) color3 {
 	return c
 }
 
-func woodTop(px, py int) color3 {
+func (g *texGen) woodTop(px, py int) color3 {
 	u, v := texel(px, py)
 	dx, dy := u-0.5, v-0.5
 	d := sqrt(dx*dx+dy*dy) * TileSize
-	n := tilingFBM(u, v, 4, 2, 74)
+	n := g.rings.at(u, v)
 	if d > 6.4 {
 		return scale(color3{104, 82, 50}, 0.8+0.3*n)
 	}
@@ -245,13 +275,13 @@ func woodTop(px, py int) color3 {
 	return mix(color3{140, 108, 64}, color3{184, 150, 96}, ring)
 }
 
-func planksTile(px, py int) color3 {
+func (g *texGen) planksTile(px, py int) color3 {
 	u, v := texel(px, py)
 	row := py / 4
 	inside := py % 4
 	c := scale(color3{178, 144, 90}, 0.86+0.22*rnd(row, 0, 81))
 	// Grain runs along each board.
-	grain := valueNoise(u*2, v*16, 2, 16, 82)
+	grain := g.plank.at(u, v)
 	c = scale(c, 0.9+0.2*grain)
 	if inside == 3 {
 		c = scale(c, 0.68)
@@ -263,9 +293,9 @@ func planksTile(px, py int) color3 {
 	return c
 }
 
-func leavesTile(px, py int) color3 {
+func (g *texGen) leavesTile(px, py int) color3 {
 	u, v := texel(px, py)
-	n := tilingFBM(u, v, 4, 2, 91)
+	n := g.leaf.at(u, v)
 	c := mix(color3{34, 92, 26}, color3{82, 164, 54}, n)
 	s := rnd(px, py, 92)
 	if s < 0.18 {

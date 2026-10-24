@@ -1,30 +1,34 @@
 package main
 
-const sandLevel = 22
+import "zube/internal/fastnoise"
 
-// terrainFBM is non wrapping fractal noise for the height map.
-func terrainFBM(x, z float32, seed uint32) float32 {
-	var sum, norm float32
-	amp, freq := float32(0.5), float32(1)
-	for o := range 4 {
-		sum += valueNoise(x*freq, z*freq, 0, 0, seed+uint32(o)) * amp
-		norm += amp
-		amp *= 0.5
-		freq *= 2
-	}
-	return sum / norm
+const sandLevel = 23
+
+// terrain is the height map, fractal OpenSimplex2 noise from FastNoiseLite.
+type terrain struct{ noise *fastnoise.State[float32] }
+
+func newTerrain(seed uint32) terrain {
+	n := fastnoise.New[float32]()
+	n.Seed = int(seed)
+	n.Frequency = 0.008
+	n.NoiseType(fastnoise.OpenSimplex2)
+	n.FractalType(fastnoise.FractalFBm)
+	n.Octaves = 4
+	return terrain{n}
 }
 
-func columnHeight(x, z int, seed uint32) int {
-	n := terrainFBM(float32(x)*0.008, float32(z)*0.008, seed)
-	h := int(8 + n*44)
+// height is the y of the top block of a column.
+func (t terrain) height(x, z int) int {
+	n := t.noise.GetNoise2D(float32(x), float32(z))*0.5 + 0.5
+	h := int(14 + n*36)
 	return min(max(h, 2), Height-14)
 }
 
 func (w *World) generate(seed uint32) {
+	height := newTerrain(seed)
 	for z := range SizeXZ {
 		for x := range SizeXZ {
-			h := columnHeight(x, z, seed)
+			h := height.height(x, z)
 			beach := h <= sandLevel
 			for y := 0; y <= h; y++ {
 				var b Block
