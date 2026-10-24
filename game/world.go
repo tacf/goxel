@@ -1,4 +1,4 @@
-package goxel
+package game
 
 import (
 	"math"
@@ -7,10 +7,11 @@ import (
 )
 
 const (
-	ChunkSize = 16
-	Height    = 64
-	ChunksXZ  = 12
-	SizeXZ    = ChunkSize * ChunksXZ
+	ChunkSize  = 16
+	Height     = 64
+	ChunksXZ   = 12
+	SizeXZ     = ChunkSize * ChunksXZ
+	ChunkCount = ChunksXZ * ChunksXZ
 )
 
 // Hit is the result of a ray hitting a block.
@@ -20,17 +21,17 @@ type Hit struct {
 	Normal [3]int
 }
 
-// World holds the voxel grid and the render state of every chunk.
+// World holds the voxel grid.
 type World struct {
-	blocks  []Block
-	chunks  [ChunksXZ * ChunksXZ]Chunk
-	scratch meshData
+	blocks []Block
+	// revs counts the edits of every chunk, so consumers can tell when their copy is stale.
+	revs [ChunkCount]uint32
 }
 
 func NewWorld(seed uint32) *World {
 	w := &World{blocks: make([]Block, SizeXZ*SizeXZ*Height)}
-	for i := range w.chunks {
-		w.chunks[i].dirty = true
+	for i := range w.revs {
+		w.revs[i] = 1
 	}
 	w.generate(seed)
 	return w
@@ -94,11 +95,14 @@ func (w *World) Set(x, y, z int, b Block) {
 // SetCell is Set for a position array.
 func (w *World) SetCell(p [3]int, b Block) { w.Set(p[0], p[1], p[2], b) }
 
+// ChunkRev is the edit revision of chunk i (z*ChunksXZ+x). It is never zero.
+func (w *World) ChunkRev(i int) uint32 { return w.revs[i] }
+
 func (w *World) markDirty(cx, cz int) {
 	if cx < 0 || cx >= ChunksXZ || cz < 0 || cz >= ChunksXZ {
 		return
 	}
-	w.chunks[cz*ChunksXZ+cx].dirty = true
+	w.revs[cz*ChunksXZ+cx]++
 }
 
 // SurfaceHeight is the y of the highest solid block in a column.

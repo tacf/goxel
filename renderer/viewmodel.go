@@ -3,7 +3,7 @@ package renderer
 import (
 	"image/color"
 
-	g "github.com/tacf/goxel"
+	"github.com/tacf/goxel/game"
 	. "github.com/tacf/goxel/math"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
@@ -16,12 +16,7 @@ var (
 	ironColor   = rl.DarkGray
 )
 
-const (
-	SwingTime = 0.35
-	equipTime = 0.25
-	// Swing progress at which the tool reaches the target.
-	impactAt = 0.5
-)
+const equipTime = 0.25
 
 // Pose places the held item in view space.
 type Pose struct {
@@ -51,40 +46,19 @@ type ViewModel struct {
 	// swing is the progress of the current swing in 0..1, negative when idle.
 	swing float32
 	// equip is the progress of the raise animation after switching items.
-	equip float32
-	// impact is set for one update when the swing reaches its strike point.
-	impact   bool
+	equip    float32
+	slot     int
 	bobPhase float32
 	bobAmp   float32
 }
 
 func NewViewModel() *ViewModel { return &ViewModel{swing: -1, equip: 1} }
 
-func (v *ViewModel) StartSwing() {
-	if v.swing < 0 {
-		v.swing = 0
-	}
-}
-
-func (v *ViewModel) StartEquip() { v.equip = 0 }
-
-// TakeImpact is true once per strike, then clears.
-func (v *ViewModel) TakeImpact() bool {
-	struck := v.impact
-	v.impact = false
-	return struck
-}
-
-func (v *ViewModel) Update(dt, walkSpeed float32) {
-	if v.swing >= 0 {
-		before := v.swing
-		v.swing += dt / SwingTime
-		if before < impactAt && v.swing >= impactAt {
-			v.impact = true
-		}
-		if v.swing >= 1 {
-			v.swing = -1
-		}
+// Update follows the game state. The swing comes from the game, as it decides when mining lands.
+func (v *ViewModel) Update(dt, walkSpeed, swing float32, slot int) {
+	v.swing = swing
+	if slot != v.slot {
+		v.slot, v.equip = slot, 0
 	}
 	v.equip = min(1, v.equip+dt/equipTime)
 	target := float32(0)
@@ -116,7 +90,7 @@ func (v *ViewModel) pose() Pose {
 }
 
 // Draw renders the arm over the world, using real depth testing against itself only.
-func (v *ViewModel) Draw(item g.Item, atlas rl.Texture2D) {
+func (v *ViewModel) Draw(item game.Item, atlas rl.Texture2D) {
 	pose := v.pose()
 	cam := rl.Camera3D{
 		Position:   rl.NewVector3(0, 0, 0),
@@ -125,12 +99,12 @@ func (v *ViewModel) Draw(item g.Item, atlas rl.Texture2D) {
 		Fovy:       70,
 		Projection: rl.CameraPerspective,
 	}
-	g.ClearDepth()
+	ClearDepth()
 	rl.BeginMode3D(cam)
 
 	drawBox(pose, Vec3{0, 0, -0.18}, Vec3{0.09, 0.09, 0.18}, 0, uniform(sleeveColor))
 	drawBox(pose, Vec3{0, 0, -0.52}, Vec3{0.085, 0.085, 0.16}, 0, uniform(skinColor))
-	if item.Kind == g.ItemPickaxe {
+	if item.Kind == game.ItemPickaxe {
 		drawBox(pose, Vec3{0, 0.13, -0.66}, Vec3{0.018, 0.2, 0.018}, 0, uniform(handleColor))
 		drawBox(pose, Vec3{0, 0.31, -0.66}, Vec3{0.022, 0.03, 0.2}, 0, uniform(ironColor))
 	} else {
@@ -176,12 +150,12 @@ func drawBox(pose Pose, center, half Vec3, localYaw float32, colors faceColors) 
 }
 
 // drawTexturedBox draws a block cube using the world texture atlas.
-func drawTexturedBox(pose Pose, center, half Vec3, localYaw float32, block g.Block, atlas rl.Texture2D) {
+func drawTexturedBox(pose Pose, center, half Vec3, localYaw float32, block game.Block, atlas rl.Texture2D) {
 	rl.SetTexture(atlas.ID)
 	rl.Begin(rl.Quads)
 	for fi := range VoxelFaces {
 		face := &VoxelFaces[fi]
-		r := g.TileRect(g.TileOf(block, fi))
+		r := TileRect(TileOf(block, fi))
 		shade := uint8(face.Shade * 255)
 		rl.Color4ub(shade, shade, shade, 255)
 		uvs := [4][2]float32{{r.U0, r.V1}, {r.U1, r.V1}, {r.U1, r.V0}, {r.U0, r.V0}}

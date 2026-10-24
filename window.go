@@ -49,12 +49,3 @@ func (s *windowSync) Update() {
 		s.synced = true
 	}
 }
-
-// clearDepth clears the depth buffer and leaves the picture untouched, so a
-// following pass is not hidden by, or clipped into, what was drawn before.
-func ClearDepth() {
-	rl.DrawRenderBatchActive()
-	rl.ColorMask(false, false, false, false)
-	rl.ClearScreenBuffers()
-	rl.ColorMask(true, true, true, true)
-}

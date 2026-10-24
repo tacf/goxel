@@ -1,16 +1,14 @@
-package goxel
+package game
 
 import (
 	"slices"
 	"testing"
 )
 
-// newTestWorld builds the seed 1 world and releases it when the test ends.
+// newTestWorld builds the seed 1 world.
 func newTestWorld(t *testing.T) *World {
 	t.Helper()
-	w := NewWorld(1)
-	t.Cleanup(w.Close)
-	return w
+	return NewWorld(1)
 }
 
 func TestTerrainDeterministicAndLayered(t *testing.T) {
@@ -32,14 +30,12 @@ func TestTerrainDeterministicAndLayered(t *testing.T) {
 
 func TestSetMarksNeighbouringChunksDirty(t *testing.T) {
 	w := newTestWorld(t)
-	for i := range w.chunks {
-		w.chunks[i].dirty = false
-	}
+	before := w.revs
 	w.Set(ChunkSize, 10, 5, Stone)
-	if !w.chunks[1].dirty || !w.chunks[0].dirty {
+	if w.ChunkRev(1) == before[1] || w.ChunkRev(0) == before[0] {
 		t.Error("edit on a chunk border should dirty both chunks")
 	}
-	if w.chunks[2].dirty {
+	if w.ChunkRev(2) != before[2] {
 		t.Error("unrelated chunk was marked dirty")
 	}
 }

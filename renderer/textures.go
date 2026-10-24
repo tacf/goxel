@@ -1,4 +1,4 @@
-package goxel
+package renderer
 
 import . "github.com/tacf/goxel/math"
 

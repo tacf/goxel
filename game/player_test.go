@@ -1,4 +1,4 @@
-package goxel
+package game
 
 import (
 	"math"

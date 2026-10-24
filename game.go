@@ -1,153 +1,70 @@
+// Package goxel wires the game logic to the window, the input and the renderer.
 package goxel
 
 import (
-	"image/color"
-	"log"
-
-	. "github.com/tacf/goxel/math"
-	. "github.com/tacf/goxel/renderer"
+	"github.com/tacf/goxel/game"
+	"github.com/tacf/goxel/renderer"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
-const (
-	viewDistance     = 8 * ChunkSize
-	reach            = 6
-	mouseSensitivity = 0.0025
-	placeCooldown    = 0.2
-)
+const mouseSensitivity = 0.0025
 
-// hotbar lists the selectable items, matching the number keys 1 to 9.
-var hotbar = [...]Item{
-	{Kind: ItemPickaxe},
-	{Kind: ItemBlock, Block: Grass},
-	{Kind: ItemBlock, Block: Dirt},
-	{Kind: ItemBlock, Block: Stone},
-	{Kind: ItemBlock, Block: Cobble},
-	{Kind: ItemBlock, Block: Planks},
-	{Kind: ItemBlock, Block: Wood},
-	{Kind: ItemBlock, Block: Sand},
-	{Kind: ItemBlock, Block: Leaves},
-}
-
-var skyColor = color.RGBA{135, 206, 235, 255}
-
-// Mining tracks the damage dealt to the block under the crosshair.
-type Mining struct {
-	Active bool
-	Pos    [3]int
-	// Progress is the damage dealt so far, 0 to 1.
-	Progress float32
-	// Shown is an eased copy of Progress used for the crack overlay.
-	Shown float32
-}
-
-// aimAt starts over when the crosshair moves to another block.
-func (m *Mining) aimAt(pos [3]int) {
-	if !m.Active || m.Pos != pos {
-		*m = Mining{Active: true, Pos: pos}
-	}
-}
-
-// hit adds damage and reports whether the block is destroyed.
-func (m *Mining) hit(damage float32) bool {
-	m.Progress += damage
-	return m.Progress >= 1
-}
-
-// ease moves the shown progress towards the real one so cracks pop in quickly.
-func (m *Mining) ease(dt float32) {
-	m.Shown += (m.Progress - m.Shown) * min(1, dt*25)
-}
-
-// Game owns everything that lives for the duration of a play session.
+// Game is the running application: a game session, its renderer and the window.
 type Game struct {
-	world    *World
-	player   Player
-	cracks   *Cracks
-	material rl.Material
-	shader   rl.Shader
-	// tiles feeds the block shader, atlas serves the 2D drawing of the hotbar and held block.
-	tiles TileArray
-	atlas rl.Texture2D
-
-	selected  int
-	cooldown  float32
-	showDebug bool
-	mining    Mining
-	winSync   windowSync
-
-	// target is the block under the crosshair, valid when hasTarget is set.
-	target    Hit
-	hasTarget bool
+	session  *game.Session
+	renderer *renderer.Renderer
+	winSync  windowSync
 }
 
 // NewGame loads the world and the GPU resources. The window must already exist.
 func NewGame() *Game {
-	pixels := make([]byte, AtlasBytes)
-	generateAtlas(pixels)
-	tiles, err := NewTileArray(tileLayers(pixels), TileSize, int(tileCount))
-	if err != nil {
-		log.Fatal(err)
+	return &Game{
+		session:  game.NewSession(1337),
+		renderer: renderer.New(),
 	}
-	shader := rl.LoadShaderFromMemory(BlockVertexShader, BlockFragmentShader)
-	// Set up on a local, cgo rejects a pointer into a heap struct that holds Go pointers.
-	material := rl.LoadMaterialDefault()
-	material.Shader = shader
-
-	g := &Game{
-		world:     NewWorld(1337),
-		cracks:    LoadCracks(),
-		material:  material,
-		shader:    shader,
-		tiles:     tiles,
-		atlas:     loadAtlas(pixels),
-		showDebug: true,
-	}
-
-	spawnX, spawnZ := SizeXZ/2, SizeXZ/2
-	g.player.Pos = Vec3{
-		float32(spawnX) + 0.5,
-		float32(g.world.SurfaceHeight(spawnX, spawnZ) + 1),
-		float32(spawnZ) + 0.5,
-	}
-	g.player.arm = NewViewModel()
-
-	return g
 }
 
 // Close releases the GPU resources.
-func (g *Game) Close() {
-	g.world.Close()
-	g.cracks.Unload()
-	rl.UnloadTexture(g.atlas)
-	g.tiles.Unload()
-	rl.UnloadShader(g.shader)
-}
-
-func (g *Game) holding() Item { return hotbar[g.selected] }
+func (g *Game) Close() { g.renderer.Close() }
 
 // Update reads input and advances the simulation by dt seconds.
 func (g *Game) Update(dt float32) {
 	g.winSync.Update()
-
-	mouse := rl.GetMouseDelta()
-	g.player.Look(mouse.X*mouseSensitivity, -mouse.Y*mouseSensitivity)
-	g.handleKeys()
-	g.player.Update(g.world, readMovement(), dt)
-	g.interact(dt)
-
-	walk := float32(0)
-	if g.player.OnGround || g.player.Flying {
-		walk = Sqrt(g.player.Vel[0]*g.player.Vel[0] + g.player.Vel[2]*g.player.Vel[2])
-	}
-	g.player.arm.Update(dt, walk)
-
-	g.world.UpdateMeshes(g.player.Pos[0], g.player.Pos[2], 0.006)
+	g.session.Update(readControls(), dt)
+	g.renderer.Update(g.session, dt)
 }
 
-func readMovement() Input {
-	var in Input
+func (g *Game) Draw() { g.renderer.Draw(g.session) }
+
+// readControls samples the keyboard and the mouse.
+func readControls() game.Controls {
+	mouse := rl.GetMouseDelta()
+	c := game.Controls{
+		Move:        readMovement(),
+		Yaw:         mouse.X * mouseSensitivity,
+		Pitch:       -mouse.Y * mouseSensitivity,
+		ToggleFly:   rl.IsKeyPressed(rl.KeyF),
+		ToggleDebug: rl.IsKeyPressed(rl.KeyF3),
+		Slot:        -1,
+		Mine:        rl.IsMouseButtonDown(rl.MouseButtonLeft),
+		Place:       rl.IsMouseButtonDown(rl.MouseButtonRight),
+	}
+	for i := range game.Hotbar {
+		if rl.IsKeyPressed(int32(rl.KeyOne + i)) {
+			c.Slot = i
+		}
+	}
+	if wheel := rl.GetMouseWheelMove(); wheel > 0 {
+		c.Scroll = -1
+	} else if wheel < 0 {
+		c.Scroll = 1
+	}
+	return c
+}
+
+func readMovement() game.Input {
+	var in game.Input
 	if rl.IsKeyDown(rl.KeyW) {
 		in.Forward++
 	}
@@ -164,127 +81,4 @@ func readMovement() Input {
 	in.Descend = rl.IsKeyDown(rl.KeyLeftShift)
 	in.Sprint = rl.IsKeyDown(rl.KeyLeftControl)
 	return in
-}
-
-// handleKeys covers the toggles and the hotbar selection.
-func (g *Game) handleKeys() {
-	if rl.IsKeyPressed(rl.KeyF) {
-		g.player.Flying = !g.player.Flying
-	}
-	if rl.IsKeyPressed(rl.KeyF3) {
-		g.showDebug = !g.showDebug
-	}
-	for i := range hotbar {
-		if rl.IsKeyPressed(int32(rl.KeyOne + i)) {
-			g.selectSlot(i)
-		}
-	}
-	if wheel := rl.GetMouseWheelMove(); wheel > 0 {
-		g.selectSlot(Wrap(g.selected-1, len(hotbar)))
-	} else if wheel < 0 {
-		g.selectSlot(Wrap(g.selected+1, len(hotbar)))
-	}
-}
-
-func (g *Game) selectSlot(i int) {
-	if i != g.selected {
-		g.selected = i
-		g.player.arm.StartEquip()
-	}
-}
-
-// interact handles aiming, mining and placing blocks.
-func (g *Game) interact(dt float32) {
-	g.target, g.hasTarget = g.world.Raycast(g.player.Eye(), g.player.Forward(), reach)
-	left := rl.IsMouseButtonDown(rl.MouseButtonLeft)
-	right := rl.IsMouseButtonDown(rl.MouseButtonRight)
-	g.cooldown -= dt
-
-	// Damage is only dealt when the swing lands, so cracks advance with each hit.
-	struck := g.player.arm.TakeImpact()
-	if left {
-		g.player.arm.StartSwing()
-	}
-	if left && g.hasTarget {
-		g.mine(struck)
-	} else {
-		g.mining = Mining{}
-	}
-	g.mining.ease(dt)
-
-	if right && !left && g.hasTarget && g.cooldown <= 0 {
-		g.place()
-	}
-}
-
-// mine keeps aiming at the target and deals damage when the swing strikes.
-func (g *Game) mine(struck bool) {
-	g.mining.aimAt(g.target.Pos)
-	if !struck {
-		return
-	}
-	b := g.world.GetCell(g.target.Pos)
-	damage := SwingTime * g.holding().MineSpeed(b) / b.Hardness()
-	if g.mining.hit(damage) {
-		g.world.SetCell(g.target.Pos, Air)
-		g.mining = Mining{}
-	}
-}
-
-// place puts the held block on the face under the crosshair.
-func (g *Game) place() {
-	held := g.holding()
-	if held.Kind != ItemBlock || g.target.Normal == [3]int{} {
-		return
-	}
-	var pos [3]int
-	for a := range pos {
-		pos[a] = g.target.Pos[a] + g.target.Normal[a]
-	}
-	if g.world.GetCell(pos) != Air || g.player.OverlapsCell(pos[0], pos[1], pos[2]) {
-		return
-	}
-	g.world.SetCell(pos, held.Block)
-	g.cooldown = placeCooldown
-	g.player.arm.StartSwing()
-}
-
-// Draw renders the world, the arm and the HUD.
-func (g *Game) Draw() {
-	eye, dir := g.player.Eye(), g.player.Forward()
-	camera := rl.Camera3D{
-		Position:   rl.NewVector3(eye[0], eye[1], eye[2]),
-		Target:     rl.NewVector3(eye[0]+dir[0], eye[1]+dir[1], eye[2]+dir[2]),
-		Up:         rl.NewVector3(0, 1, 0),
-		Fovy:       70,
-		Projection: rl.CameraPerspective,
-	}
-
-	rl.BeginDrawing()
-	rl.ClearBackground(skyColor)
-	rl.BeginMode3D(camera)
-	g.tiles.Bind()
-	g.world.Draw(g.material, g.player.Pos[0], g.player.Pos[2], viewDistance)
-	if g.hasTarget {
-		rl.DrawCubeWiresV(
-			rl.NewVector3(float32(g.target.Pos[0])+0.5, float32(g.target.Pos[1])+0.5, float32(g.target.Pos[2])+0.5),
-			rl.NewVector3(1.003, 1.003, 1.003),
-			black,
-		)
-	}
-	if g.mining.Active && g.mining.Shown > 0.03 {
-		g.cracks.Draw(g.mining.Pos, g.mining.Shown)
-	}
-	rl.EndMode3D()
-	g.player.arm.Draw(g.holding(), g.atlas)
-	g.drawHUD()
-	rl.EndDrawing()
-}
-
-// loadAtlas uploads the atlas for 2D drawing. It is sampled without filtering or mipmaps.
-func loadAtlas(pixels []byte) rl.Texture2D {
-	img := rl.NewImage(pixels, AtlasSize, AtlasSize, 1, rl.UncompressedR8g8b8a8)
-	atlas := rl.LoadTextureFromImage(img)
-	rl.SetTextureFilter(atlas, rl.FilterPoint)
-	return atlas
 }

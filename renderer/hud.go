@@ -1,8 +1,10 @@
-package goxel
+package renderer
 
 import (
 	"fmt"
 	"image/color"
+
+	"github.com/tacf/goxel/game"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
@@ -19,28 +21,28 @@ const (
 )
 
 // drawHUD draws the crosshair, the hotbar and the debug line in logical pixels.
-func (g *Game) drawHUD() {
+func (r *Renderer) drawHUD(s *game.Session) {
 	w, h := int32(rl.GetScreenWidth()), int32(rl.GetScreenHeight())
 
 	rl.DrawRectangle(w/2-10, h/2-1, 20, 2, white)
 	rl.DrawRectangle(w/2-1, h/2-10, 2, 20, white)
 
-	g.drawHotbar(w, h)
-	if g.showDebug {
-		g.drawDebug()
+	r.drawHotbar(s, w, h)
+	if s.ShowDebug {
+		drawDebug(s)
 	}
 }
 
-func (g *Game) drawHotbar(w, h int32) {
-	total := int32(len(hotbar))*(hotbarSlot+hotbarGap) - hotbarGap
+func (r *Renderer) drawHotbar(s *game.Session, w, h int32) {
+	total := int32(len(game.Hotbar))*(hotbarSlot+hotbarGap) - hotbarGap
 	x := (w - total) / 2
 	y := h - hotbarSlot - 16
-	for i, item := range hotbar {
+	for i, item := range game.Hotbar {
 		rl.DrawRectangle(x, y, hotbarSlot, hotbarSlot, shadow)
-		if item.Kind == ItemBlock {
+		if item.Kind == game.ItemBlock {
 			src := tilePixels(iconTile(item.Block))
 			rl.DrawTexturePro(
-				g.atlas,
+				r.atlas,
 				rl.NewRectangle(src[0], src[1], src[2], src[3]),
 				rl.NewRectangle(float32(x+6), float32(y+6), hotbarSlot-12, hotbarSlot-12),
 				rl.NewVector2(0, 0), 0, white,
@@ -48,21 +50,21 @@ func (g *Game) drawHotbar(w, h int32) {
 		} else {
 			drawPickaxeIcon(x, y, hotbarSlot)
 		}
-		if i == g.selected {
+		if i == s.Selected {
 			rl.DrawRectangleLinesEx(rl.NewRectangle(float32(x-2), float32(y-2), hotbarSlot+4, hotbarSlot+4), 3, white)
 		}
 		x += hotbarSlot + hotbarGap
 	}
-	name := g.holding().String()
+	name := s.Holding().String()
 	rl.DrawText(name, (w-rl.MeasureText(name, 20))/2, y-28, 20, white)
 }
 
-func (g *Game) drawDebug() {
+func drawDebug(s *game.Session) {
 	flying := ""
-	if g.player.Flying {
+	if s.Player.Flying {
 		flying = "  flying"
 	}
-	p := g.player.Pos
+	p := s.Player.Pos
 	text := fmt.Sprintf("%d fps  xyz %.1f %.1f %.1f%s", rl.GetFPS(), p[0], p[1], p[2], flying)
 	rl.DrawText(text, 11, 11, 20, black)
 	rl.DrawText(text, 10, 10, 20, white)

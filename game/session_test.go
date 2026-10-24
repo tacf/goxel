@@ -1,33 +1,32 @@
-package goxel
+package game
 
-import ("testing"
-	. "github.com/tacf/goxel/renderer"
+import (
 	. "github.com/tacf/goxel/math"
+	"testing"
 )
 
-// newTestGame builds a game around a test world, without any GPU resources.
-func newTestGame(t *testing.T, slot int) *Game {
+// newTestGame builds a session around a test world.
+func newTestGame(t *testing.T, slot int) *Session {
 	t.Helper()
-	return &Game{world: newTestWorld(t), selected: slot}
+	return &Session{World: NewWorld(1), Selected: slot}
 }
 
 // flatSpot returns a column and the y of its surface block.
-func flatSpot(g *Game) (x, y, z int) {
+func flatSpot(g *Session) (x, y, z int) {
 	x, z = 40, 40
-	return x, g.world.SurfaceHeight(x, z), z
+	return x, g.World.SurfaceHeight(x, z), z
 }
 
 func TestPlaceBuildsOnTheFaceUnderTheCrosshair(t *testing.T) {
 	g := newTestGame(t, 3) // stone
 	x, y, z := flatSpot(g)
-	g.player.Pos = Vec3{10.5, float32(y + 1), 10.5}
-	g.player.arm = NewViewModel()
-	g.target = Hit{Pos: [3]int{x, y, z}, Normal: [3]int{0, 1, 0}}
+	g.Player.Pos = Vec3{10.5, float32(y + 1), 10.5}
+	g.Target = Hit{Pos: [3]int{x, y, z}, Normal: [3]int{0, 1, 0}}
 	g.place()
-	if got := g.world.Get(x, y+1, z); got != Stone {
+	if got := g.World.Get(x, y+1, z); got != Stone {
 		t.Fatalf("block above the target is %v, want Stone", got)
 	}
-	if g.cooldown <= 0 || g.player.arm.swing < 0 {
+	if g.cooldown <= 0 || !g.Player.Swing.Active() {
 		t.Error("placing should start the cooldown and the swing")
 	}
 }
@@ -47,13 +46,13 @@ func TestPlaceRefusesInvalidSpots(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			g := newTestGame(t, tc.slot)
 			x, y, z := flatSpot(g)
-			g.player.Pos = Vec3{10.5, float32(y + 1), 10.5}
+			g.Player.Pos = Vec3{10.5, float32(y + 1), 10.5}
 			if tc.inside {
-				g.player.Pos = Vec3{float32(x) + 0.5, float32(y + 1), float32(z) + 0.5}
+				g.Player.Pos = Vec3{float32(x) + 0.5, float32(y + 1), float32(z) + 0.5}
 			}
-			g.target = Hit{Pos: [3]int{x, y, z}, Normal: tc.normal}
+			g.Target = Hit{Pos: [3]int{x, y, z}, Normal: tc.normal}
 			g.place()
-			if got := g.world.Get(x, y+1, z); got != Air {
+			if got := g.World.Get(x, y+1, z); got != Air {
 				t.Errorf("block was placed: %v", got)
 			}
 		})
@@ -63,23 +62,23 @@ func TestPlaceRefusesInvalidSpots(t *testing.T) {
 func TestMiningBreaksBlockAfterEnoughStrikes(t *testing.T) {
 	g := newTestGame(t, 0) // pickaxe
 	x, y, z := flatSpot(g)
-	g.world.Set(x, y+1, z, Stone)
-	g.target = Hit{Pos: [3]int{x, y + 1, z}, Normal: [3]int{0, 1, 0}}
+	g.World.Set(x, y+1, z, Stone)
+	g.Target = Hit{Pos: [3]int{x, y + 1, z}, Normal: [3]int{0, 1, 0}}
 
 	g.mine(false)
-	if g.mining.Progress != 0 || !g.mining.Active {
+	if g.Mining.Progress != 0 || !g.Mining.Active {
 		t.Fatal("aiming alone must not deal damage")
 	}
 	// The pickaxe is 4 times faster on stone, so three strikes of 0.35s/(3s/4) break it.
 	strikes := 0
-	for g.world.Get(x, y+1, z) == Stone && strikes < 10 {
+	for g.World.Get(x, y+1, z) == Stone && strikes < 10 {
 		g.mine(true)
 		strikes++
 	}
-	if g.world.Get(x, y+1, z) != Air || strikes != 3 {
-		t.Errorf("after %d strikes block is %v, want Air after 3", strikes, g.world.Get(x, y+1, z))
+	if g.World.Get(x, y+1, z) != Air || strikes != 3 {
+		t.Errorf("after %d strikes block is %v, want Air after 3", strikes, g.World.Get(x, y+1, z))
 	}
-	if g.mining.Active {
+	if g.Mining.Active {
 		t.Error("mining state should reset once the block breaks")
 	}
 }

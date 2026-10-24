@@ -1,8 +1,9 @@
-package goxel
+package renderer
 
 import (
 	"math"
 
+	"github.com/tacf/goxel/game"
 	. "github.com/tacf/goxel/math"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
@@ -11,11 +12,12 @@ import (
 // aoLevels is the brightness of a vertex by how many neighbours occlude it.
 var aoLevels = [4]float32{0.5, 0.7, 0.85, 1.0}
 
-// Chunk keeps the GPU handles of one mesh. The vertex arrays are scratch data.
-type Chunk struct {
+// chunkMesh keeps the GPU handles of one chunk. The vertex arrays are scratch data.
+type chunkMesh struct {
 	mesh    rl.Mesh
 	hasMesh bool
-	dirty   bool
+	// rev is the world revision the mesh was built from, zero before the first build.
+	rev uint32
 }
 
 // meshData is the CPU side vertex data of the chunk being built.
@@ -42,23 +44,29 @@ func (m *meshData) addVertex(pos Vec3, rgba [4]uint8, uv [2]float32, layer Tile)
 	m.layers = append(m.layers, float32(layer), 0)
 }
 
+// WorldMesh turns the voxel world into one GPU mesh per chunk.
+type WorldMesh struct {
+	chunks  [game.ChunkCount]chunkMesh
+	scratch meshData
+}
+
 // Close releases the GPU meshes.
-func (w *World) Close() {
-	for i := range w.chunks {
-		if w.chunks[i].hasMesh {
-			rl.UnloadMesh(&w.chunks[i].mesh)
+func (m *WorldMesh) Close() {
+	for i := range m.chunks {
+		if m.chunks[i].hasMesh {
+			rl.UnloadMesh(&m.chunks[i].mesh)
 		}
 	}
 }
 
-// UpdateMeshes rebuilds dirty chunks, nearest to the position first, until the time budget is spent.
-func (w *World) UpdateMeshes(nearX, nearZ float32, budgetSeconds float64) {
+// Update rebuilds edited chunks, nearest to the position first, until the time budget is spent.
+func (m *WorldMesh) Update(w *game.World, nearX, nearZ float32, budgetSeconds float64) {
 	start := rl.GetTime()
 	for {
 		best := -1
 		bestDist := float32(math.MaxFloat32)
-		for i := range w.chunks {
-			if !w.chunks[i].dirty {
+		for i := range m.chunks {
+			if m.chunks[i].rev == w.ChunkRev(i) {
 				continue
 			}
 			if d := chunkDistSq(i, nearX, nearZ); d < bestDist {
@@ -68,9 +76,9 @@ func (w *World) UpdateMeshes(nearX, nearZ float32, budgetSeconds float64) {
 		if best < 0 {
 			return
 		}
-		w.chunks[best].dirty = false
-		w.meshChunk(best)
-		w.uploadChunk(&w.chunks[best])
+		m.chunks[best].rev = w.ChunkRev(best)
+		m.meshChunk(w, best)
+		m.uploadChunk(&m.chunks[best])
 		if rl.GetTime()-start > budgetSeconds {
 			return
 		}
@@ -78,31 +86,31 @@ func (w *World) UpdateMeshes(nearX, nearZ float32, budgetSeconds float64) {
 }
 
 func chunkDistSq(i int, x, z float32) float32 {
-	cx := float32(i%ChunksXZ*ChunkSize + ChunkSize/2)
-	cz := float32(i/ChunksXZ*ChunkSize + ChunkSize/2)
+	cx := float32(i%game.ChunksXZ*game.ChunkSize + game.ChunkSize/2)
+	cz := float32(i/game.ChunksXZ*game.ChunkSize + game.ChunkSize/2)
 	return (cx-x)*(cx-x) + (cz-z)*(cz-z)
 }
 
 // Draw renders the chunks within the view distance of the camera.
-func (w *World) Draw(material rl.Material, camX, camZ, viewDist float32) {
+func (m *WorldMesh) Draw(material rl.Material, camX, camZ, viewDist float32) {
 	identity := rl.MatrixIdentity()
-	for i := range w.chunks {
-		if !w.chunks[i].hasMesh || chunkDistSq(i, camX, camZ) > viewDist*viewDist {
+	for i := range m.chunks {
+		if !m.chunks[i].hasMesh || chunkDistSq(i, camX, camZ) > viewDist*viewDist {
 			continue
 		}
-		rl.DrawMesh(w.chunks[i].mesh, material, identity)
+		rl.DrawMesh(m.chunks[i].mesh, material, identity)
 	}
 }
 
 // meshChunk fills the scratch arrays with the visible faces of a chunk.
-func (w *World) meshChunk(i int) {
-	w.scratch.reset()
-	ox, oz := i%ChunksXZ*ChunkSize, i/ChunksXZ*ChunkSize
-	for y := range Height {
-		for lz := range ChunkSize {
-			for lx := range ChunkSize {
-				if b := w.Get(ox+lx, y, oz+lz); b != Air {
-					w.addBlockFaces(b, ox+lx, y, oz+lz)
+func (m *WorldMesh) meshChunk(w *game.World, i int) {
+	m.scratch.reset()
+	ox, oz := i%game.ChunksXZ*game.ChunkSize, i/game.ChunksXZ*game.ChunkSize
+	for y := range game.Height {
+		for lz := range game.ChunkSize {
+			for lx := range game.ChunkSize {
+				if b := w.Get(ox+lx, y, oz+lz); b != game.Air {
+					m.addBlockFaces(w, b, ox+lx, y, oz+lz)
 				}
 			}
 		}
@@ -110,12 +118,12 @@ func (w *World) meshChunk(i int) {
 }
 
 // uploadChunk replaces the GPU mesh of a chunk with the scratch arrays.
-func (w *World) uploadChunk(chunk *Chunk) {
+func (m *WorldMesh) uploadChunk(chunk *chunkMesh) {
 	if chunk.hasMesh {
 		rl.UnloadMesh(&chunk.mesh)
 		chunk.mesh, chunk.hasMesh = rl.Mesh{}, false
 	}
-	count := w.scratch.vertexCount()
+	count := m.scratch.vertexCount()
 	if count == 0 {
 		return
 	}
@@ -123,10 +131,10 @@ func (w *World) uploadChunk(chunk *Chunk) {
 	mesh := rl.Mesh{
 		VertexCount:   int32(count),
 		TriangleCount: int32(count / 3),
-		Vertices:      &w.scratch.verts[0],
-		Colors:        &w.scratch.colors[0],
-		Texcoords:     &w.scratch.uvs[0],
-		Texcoords2:    &w.scratch.layers[0],
+		Vertices:      &m.scratch.verts[0],
+		Colors:        &m.scratch.colors[0],
+		Texcoords:     &m.scratch.uvs[0],
+		Texcoords2:    &m.scratch.layers[0],
 	}
 	rl.UploadMesh(&mesh, false)
 	// The scratch arrays are reused, so drop the pointers and keep the GPU handles only.
@@ -139,12 +147,12 @@ func (w *World) uploadChunk(chunk *Chunk) {
 	chunk.hasMesh = true
 }
 
-func (w *World) addBlockFaces(b Block, x, y, z int) {
+func (m *WorldMesh) addBlockFaces(w *game.World, b game.Block, x, y, z int) {
 	jitter := 0.94 + 0.06*Rnd(x+y*7919, z, 77)
 	for fi := range VoxelFaces {
 		face := &VoxelFaces[fi]
 		nx, ny, nz := x+face.N[0], y+face.N[1], z+face.N[2]
-		if w.Get(nx, ny, nz) != Air {
+		if w.Get(nx, ny, nz) != game.Air {
 			continue
 		}
 
@@ -172,9 +180,9 @@ func (w *World) addBlockFaces(b Block, x, y, z int) {
 			pc := p1
 			pc[t2] += s2
 			ao[k] = vertexAO(
-				w.GetCell(p1) != Air,
-				w.GetCell(p2) != Air,
-				w.GetCell(pc) != Air,
+				w.GetCell(p1) != game.Air,
+				w.GetCell(p2) != game.Air,
+				w.GetCell(pc) != game.Air,
 			)
 
 			// Colour is only light, the texture supplies the hue.
@@ -189,7 +197,7 @@ func (w *World) addBlockFaces(b Block, x, y, z int) {
 			order = [6]int{1, 2, 3, 1, 3, 0}
 		}
 		for _, k := range order {
-			w.scratch.addVertex(pos[k], rgba[k], uv[k], tile)
+			m.scratch.addVertex(pos[k], rgba[k], uv[k], tile)
 		}
 	}
 }

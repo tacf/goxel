@@ -20,13 +20,13 @@ base:
 
 build: base
 	export GOWORK=off
-	go build -o $(OUTPUT_FOLDER)/$(NAME) .
+	go build -o $(OUTPUT_FOLDER)/$(NAME) ./cmd/goxel.go
 
 run: base
 	GOWORK=off go run ./cmd/goxel.go $(ARGS)
 
 release: base
-	GOWORK=off go build -ldflags="-s -w" -o $(OUTPUT_FOLDER)/$(NAME) .
+	GOWORK=off go build -ldflags="-s -w" -o $(OUTPUT_FOLDER)/$(NAME) ./cmd/goxel.go
 
 test: base
 	export GOWORK=off

@@ -1,10 +1,9 @@
-package goxel
+package game
 
 import (
 	"math"
 
 	. "github.com/tacf/goxel/math"
-	. "github.com/tacf/goxel/renderer"
 )
 
 const (
@@ -22,6 +21,11 @@ const (
 	contactSkin = 1e-4
 	// maxSubstep is the longest distance moved before collisions are checked again.
 	maxSubstep = 0.2
+
+	// SwingTime is the duration of one arm swing in seconds.
+	SwingTime = 0.35
+	// Swing progress at which the tool reaches the target.
+	impactAt = 0.5
 )
 
 // Input is the movement requested for one frame.
@@ -40,7 +44,7 @@ type Player struct {
 	Pitch    float32
 	OnGround bool
 	Flying   bool
-	arm      *ViewModel
+	Swing    Swing
 }
 
 func (p *Player) Eye() Vec3 {
@@ -153,4 +157,58 @@ func (p *Player) OverlapsCell(x, y, z int) bool {
 	return p.Pos[0]+halfWidth > fx && p.Pos[0]-halfWidth < fx+1 &&
 		p.Pos[1]+bodyHeight > fy && p.Pos[1] < fy+1 &&
 		p.Pos[2]+halfWidth > fz && p.Pos[2]-halfWidth < fz+1
+}
+
+// Swing times the arm swing, which decides when mining damage lands.
+type Swing struct {
+	active bool
+	// t is the position of the current swing in 0..1.
+	t float32
+	// impact is set for one update when the swing reaches its strike point.
+	impact bool
+}
+
+// Progress is the position of the current swing in 0..1, negative when idle.
+func (s *Swing) Progress() float32 {
+	if !s.active {
+		return -1
+	}
+	return s.t
+}
+
+func (s *Swing) Active() bool { return s.active }
+
+func (s *Swing) Start() {
+	if !s.active {
+		s.active, s.t = true, 0
+	}
+}
+
+// TakeImpact is true once per strike, then clears.
+func (s *Swing) TakeImpact() bool {
+	struck := s.impact
+	s.impact = false
+	return struck
+}
+
+func (s *Swing) Update(dt float32) {
+	if !s.active {
+		return
+	}
+	before := s.t
+	s.t += dt / SwingTime
+	if before < impactAt && s.t >= impactAt {
+		s.impact = true
+	}
+	if s.t >= 1 {
+		s.active = false
+	}
+}
+
+// WalkSpeed is the horizontal speed while the body is moving on a surface or flying.
+func (p *Player) WalkSpeed() float32 {
+	if !p.OnGround && !p.Flying {
+		return 0
+	}
+	return Sqrt(p.Vel[0]*p.Vel[0] + p.Vel[2]*p.Vel[2])
 }

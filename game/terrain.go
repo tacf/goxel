@@ -1,4 +1,4 @@
-package goxel
+package game
 
 import (
 	"github.com/tacf/goxel/internal/fastnoise"
