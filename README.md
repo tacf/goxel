@@ -4,6 +4,8 @@ A small Minecraft style voxel game written in Go with raylib. It's an
 experiment to test generating everything including textures through
 procedural (noise noise noise) generation.
 
+![Sample in game image](./screenshots/screenshot0.webp)
+
 ## Build
 
 Needs Go 1.27 and a C compiler, since raylib is built from source through cgo.
