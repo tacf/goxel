@@ -1,6 +1,9 @@
-package main
+package goxel
 
-import "goxel/internal/fastnoise"
+import (
+	"github.com/tacf/goxel/internal/fastnoise"
+	. "github.com/tacf/goxel/math"
+)
 
 const sandLevel = 23
 
@@ -54,7 +57,7 @@ func (w *World) generate(seed uint32) {
 			if w.Get(x, h, z) != Grass {
 				continue
 			}
-			r := hash(x, z, seed+999)
+			r := Hash(x, z, seed+999)
 			if r%90 != 0 {
 				continue
 			}

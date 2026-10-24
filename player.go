@@ -1,6 +1,11 @@
-package main
+package goxel
 
-import "math"
+import (
+	"math"
+
+	. "github.com/tacf/goxel/math"
+	. "github.com/tacf/goxel/renderer"
+)
 
 const (
 	halfWidth  = 0.3
@@ -35,6 +40,7 @@ type Player struct {
 	Pitch    float32
 	OnGround bool
 	Flying   bool
+	arm      *ViewModel
 }
 
 func (p *Player) Eye() Vec3 {
@@ -42,15 +48,15 @@ func (p *Player) Eye() Vec3 {
 }
 
 func (p *Player) Forward() Vec3 {
-	cp := cos(p.Pitch)
-	return Vec3{sin(p.Yaw) * cp, sin(p.Pitch), -cos(p.Yaw) * cp}
+	cp := Cos(p.Pitch)
+	return Vec3{Sin(p.Yaw) * cp, Sin(p.Pitch), -Cos(p.Yaw) * cp}
 }
 
 // Look turns the view and stops short of looking straight up or down.
 func (p *Player) Look(dyaw, dpitch float32) {
 	p.Yaw += dyaw
-	limit := pi/2 - 0.01
-	p.Pitch = clamp(p.Pitch+dpitch, -limit, limit)
+	limit := PI/2 - 0.01
+	p.Pitch = Clamp(p.Pitch+dpitch, -limit, limit)
 }
 
 // Update applies input and physics for one frame.
@@ -61,11 +67,11 @@ func (p *Player) Update(w *World, in Input, dt float32) {
 	} else if in.Sprint {
 		speed = sprintSpeed
 	}
-	fx, fz := sin(p.Yaw), -cos(p.Yaw)
-	rx, rz := cos(p.Yaw), sin(p.Yaw)
+	fx, fz := Sin(p.Yaw), -Cos(p.Yaw)
+	rx, rz := Cos(p.Yaw), Sin(p.Yaw)
 	wx := fx*in.Forward + rx*in.Strafe
 	wz := fz*in.Forward + rz*in.Strafe
-	if l := sqrt(wx*wx + wz*wz); l > 1 {
+	if l := Sqrt(wx*wx + wz*wz); l > 1 {
 		wx /= l
 		wz /= l
 	}
@@ -89,7 +95,7 @@ func (p *Player) Update(w *World, in Input, dt float32) {
 
 	// Small sub-steps keep fast falls from tunnelling through blocks.
 	delta := Vec3{p.Vel[0] * dt, p.Vel[1] * dt, p.Vel[2] * dt}
-	biggest := max(abs(delta[0]), abs(delta[1]), abs(delta[2]))
+	biggest := max(Abs(delta[0]), Abs(delta[1]), Abs(delta[2]))
 	steps := max(1, int(math.Ceil(float64(biggest/maxSubstep))))
 	inv := 1 / float32(steps)
 	p.OnGround = false
@@ -115,20 +121,20 @@ func (p *Player) moveAxis(w *World, axis int, d float32) {
 		if vertical {
 			top = bodyHeight
 		}
-		p.Pos[axis] = floor(p.Pos[axis]+top) - top - contactSkin
+		p.Pos[axis] = Floor(p.Pos[axis]+top) - top - contactSkin
 	} else if vertical {
-		p.Pos[axis] = floor(p.Pos[axis]) + 1
+		p.Pos[axis] = Floor(p.Pos[axis]) + 1
 		p.OnGround = true
 	} else {
-		p.Pos[axis] = floor(p.Pos[axis]-halfWidth) + 1 + halfWidth + contactSkin
+		p.Pos[axis] = Floor(p.Pos[axis]-halfWidth) + 1 + halfWidth + contactSkin
 	}
 	p.Vel[axis] = 0
 }
 
 func (p *Player) collides(w *World) bool {
-	x0, x1 := int(floor(p.Pos[0]-halfWidth)), int(floor(p.Pos[0]+halfWidth))
-	y0, y1 := int(floor(p.Pos[1])), int(floor(p.Pos[1]+bodyHeight))
-	z0, z1 := int(floor(p.Pos[2]-halfWidth)), int(floor(p.Pos[2]+halfWidth))
+	x0, x1 := int(Floor(p.Pos[0]-halfWidth)), int(Floor(p.Pos[0]+halfWidth))
+	y0, y1 := int(Floor(p.Pos[1])), int(Floor(p.Pos[1]+bodyHeight))
+	z0, z1 := int(Floor(p.Pos[2]-halfWidth)), int(Floor(p.Pos[2]+halfWidth))
 	for y := y0; y <= y1; y++ {
 		for z := z0; z <= z1; z++ {
 			for x := x0; x <= x1; x++ {

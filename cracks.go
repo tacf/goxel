@@ -1,7 +1,9 @@
-package main
+package goxel
 
 import (
 	"image/color"
+
+	. "github.com/tacf/goxel/math"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
@@ -29,7 +31,7 @@ func LoadCracks() *Cracks {
 					continue
 				}
 				// Older parts of a crack read darker and deeper.
-				age := clamp((reach-born)/0.5, 0, 1)
+				age := Clamp((reach-born)/0.5, 0, 1)
 				shade := uint8(30 - 24*age)
 				alpha := uint8(175 + 75*age)
 				rl.ImageDrawPixel(img, int32(x), int32(y), color.RGBA{shade, shade, shade, alpha})
@@ -57,8 +59,8 @@ func (c *Cracks) Draw(pos [3]int, progress float32) {
 	rl.SetTexture(c.textures[stage].ID)
 	rl.Begin(rl.Quads)
 	rl.Color4ub(255, 255, 255, 255)
-	for fi := range faces {
-		for k, v := range faces[fi].V {
+	for fi := range VoxelFaces {
+		for k, v := range VoxelFaces[fi].V {
 			rl.TexCoord2f(uv[k][0], uv[k][1])
 			rl.Vertex3f(
 				o[0]+float32(v[0])*(1+2*grow)-grow,

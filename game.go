@@ -1,8 +1,11 @@
-package main
+package goxel
 
 import (
 	"image/color"
 	"log"
+
+	. "github.com/tacf/goxel/math"
+	. "github.com/tacf/goxel/renderer"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
@@ -61,7 +64,6 @@ func (m *Mining) ease(dt float32) {
 type Game struct {
 	world    *World
 	player   Player
-	arm      *ViewModel
 	cracks   *Cracks
 	material rl.Material
 	shader   rl.Shader
@@ -88,14 +90,13 @@ func NewGame() *Game {
 	if err != nil {
 		log.Fatal(err)
 	}
-	shader := rl.LoadShaderFromMemory(blockVertexShader, blockFragmentShader)
+	shader := rl.LoadShaderFromMemory(BlockVertexShader, BlockFragmentShader)
 	// Set up on a local, cgo rejects a pointer into a heap struct that holds Go pointers.
 	material := rl.LoadMaterialDefault()
 	material.Shader = shader
 
 	g := &Game{
 		world:     NewWorld(1337),
-		arm:       NewViewModel(),
 		cracks:    LoadCracks(),
 		material:  material,
 		shader:    shader,
@@ -110,6 +111,8 @@ func NewGame() *Game {
 		float32(g.world.SurfaceHeight(spawnX, spawnZ) + 1),
 		float32(spawnZ) + 0.5,
 	}
+	g.player.arm = NewViewModel()
+
 	return g
 }
 
@@ -136,9 +139,9 @@ func (g *Game) Update(dt float32) {
 
 	walk := float32(0)
 	if g.player.OnGround || g.player.Flying {
-		walk = sqrt(g.player.Vel[0]*g.player.Vel[0] + g.player.Vel[2]*g.player.Vel[2])
+		walk = Sqrt(g.player.Vel[0]*g.player.Vel[0] + g.player.Vel[2]*g.player.Vel[2])
 	}
-	g.arm.Update(dt, walk)
+	g.player.arm.Update(dt, walk)
 
 	g.world.UpdateMeshes(g.player.Pos[0], g.player.Pos[2], 0.006)
 }
@@ -177,16 +180,16 @@ func (g *Game) handleKeys() {
 		}
 	}
 	if wheel := rl.GetMouseWheelMove(); wheel > 0 {
-		g.selectSlot(wrap(g.selected-1, len(hotbar)))
+		g.selectSlot(Wrap(g.selected-1, len(hotbar)))
 	} else if wheel < 0 {
-		g.selectSlot(wrap(g.selected+1, len(hotbar)))
+		g.selectSlot(Wrap(g.selected+1, len(hotbar)))
 	}
 }
 
 func (g *Game) selectSlot(i int) {
 	if i != g.selected {
 		g.selected = i
-		g.arm.StartEquip()
+		g.player.arm.StartEquip()
 	}
 }
 
@@ -198,9 +201,9 @@ func (g *Game) interact(dt float32) {
 	g.cooldown -= dt
 
 	// Damage is only dealt when the swing lands, so cracks advance with each hit.
-	struck := g.arm.TakeImpact()
+	struck := g.player.arm.TakeImpact()
 	if left {
-		g.arm.StartSwing()
+		g.player.arm.StartSwing()
 	}
 	if left && g.hasTarget {
 		g.mine(struck)
@@ -221,7 +224,7 @@ func (g *Game) mine(struck bool) {
 		return
 	}
 	b := g.world.GetCell(g.target.Pos)
-	damage := swingTime * g.holding().MineSpeed(b) / b.Hardness()
+	damage := SwingTime * g.holding().MineSpeed(b) / b.Hardness()
 	if g.mining.hit(damage) {
 		g.world.SetCell(g.target.Pos, Air)
 		g.mining = Mining{}
@@ -243,7 +246,7 @@ func (g *Game) place() {
 	}
 	g.world.SetCell(pos, held.Block)
 	g.cooldown = placeCooldown
-	g.arm.StartSwing()
+	g.player.arm.StartSwing()
 }
 
 // Draw renders the world, the arm and the HUD.
@@ -273,7 +276,7 @@ func (g *Game) Draw() {
 		g.cracks.Draw(g.mining.Pos, g.mining.Shown)
 	}
 	rl.EndMode3D()
-	g.arm.Draw(g.holding(), g.atlas)
+	g.player.arm.Draw(g.holding(), g.atlas)
 	g.drawHUD()
 	rl.EndDrawing()
 }

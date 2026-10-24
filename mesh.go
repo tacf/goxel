@@ -1,28 +1,12 @@
-package main
+package goxel
 
 import (
 	"math"
 
+	. "github.com/tacf/goxel/math"
+
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
-
-// Face describes one side of a cube.
-type Face struct {
-	N     [3]int
-	V     [4][3]int
-	Shade float32
-}
-
-// faces lists the cube sides with corners counter clockwise as seen from outside.
-// The order is top, bottom, +x, -x, +z, -z.
-var faces = [6]Face{
-	{[3]int{0, 1, 0}, [4][3]int{{0, 1, 0}, {0, 1, 1}, {1, 1, 1}, {1, 1, 0}}, 1.0},
-	{[3]int{0, -1, 0}, [4][3]int{{0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}}, 0.5},
-	{[3]int{1, 0, 0}, [4][3]int{{1, 0, 0}, {1, 1, 0}, {1, 1, 1}, {1, 0, 1}}, 0.8},
-	{[3]int{-1, 0, 0}, [4][3]int{{0, 0, 0}, {0, 0, 1}, {0, 1, 1}, {0, 1, 0}}, 0.8},
-	{[3]int{0, 0, 1}, [4][3]int{{0, 0, 1}, {1, 0, 1}, {1, 1, 1}, {0, 1, 1}}, 0.65},
-	{[3]int{0, 0, -1}, [4][3]int{{1, 0, 0}, {0, 0, 0}, {0, 1, 0}, {1, 1, 0}}, 0.65},
-}
 
 // aoLevels is the brightness of a vertex by how many neighbours occlude it.
 var aoLevels = [4]float32{0.5, 0.7, 0.85, 1.0}
@@ -156,9 +140,9 @@ func (w *World) uploadChunk(chunk *Chunk) {
 }
 
 func (w *World) addBlockFaces(b Block, x, y, z int) {
-	jitter := 0.94 + 0.06*rnd(x+y*7919, z, 77)
-	for fi := range faces {
-		face := &faces[fi]
+	jitter := 0.94 + 0.06*Rnd(x+y*7919, z, 77)
+	for fi := range VoxelFaces {
+		face := &VoxelFaces[fi]
 		nx, ny, nz := x+face.N[0], y+face.N[1], z+face.N[2]
 		if w.Get(nx, ny, nz) != Air {
 			continue
@@ -172,7 +156,7 @@ func (w *World) addBlockFaces(b Block, x, y, z int) {
 		}
 		t1, t2 := (axis+1)%3, (axis+2)%3
 		base := [3]int{nx, ny, nz}
-		tile := tileOf(b, fi)
+		tile := TileOf(b, fi)
 
 		var pos [4]Vec3
 		var ao [4]int
@@ -194,7 +178,7 @@ func (w *World) addBlockFaces(b Block, x, y, z int) {
 			)
 
 			// Colour is only light, the texture supplies the hue.
-			light := uint8(clamp(face.Shade*aoLevels[ao[k]]*jitter*255, 0, 255))
+			light := uint8(Clamp(face.Shade*aoLevels[ao[k]]*jitter*255, 0, 255))
 			rgba[k] = [4]uint8{light, light, light, 255}
 			uv[k] = faceUV(fi, v)
 		}

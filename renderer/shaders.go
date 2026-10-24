@@ -1,8 +1,8 @@
-package main
+package renderer
 
 // Block shader. The layer of the tile comes in as the x of the second texture coordinate.
 const (
-	blockVertexShader = `#version 330
+	BlockVertexShader = `#version 330
 in vec3 vertexPosition;
 in vec2 vertexTexCoord;
 in vec2 vertexTexCoord2;
@@ -18,7 +18,7 @@ void main() {
 	gl_Position = mvp * vec4(vertexPosition, 1.0);
 }
 `
-	blockFragmentShader = `#version 330
+	BlockFragmentShader = `#version 330
 in vec2 fragTexCoord;
 flat in float fragLayer;
 in vec4 fragColor;

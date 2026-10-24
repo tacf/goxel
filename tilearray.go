@@ -1,4 +1,4 @@
-package main
+package goxel
 
 /*
 typedef unsigned int GLuint;
@@ -46,7 +46,7 @@ static int loadGL(void) {
 #define RGBA8 0x8058
 #define UNSIGNED_BYTE 0x1401
 
-static GLuint createTileArray(int w, int h, int layers, const unsigned char *pixels) {
+static GLuint createTileArray(int w, int h, int layers, const unsigned char *PIxels) {
 	if (!loadGL()) return 0;
 	GLuint id = 0;
 	pGenTextures(1, &id);

@@ -1,4 +1,4 @@
-module goxel
+module github.com/tacf/goxel
 
 go 1.27.1
 

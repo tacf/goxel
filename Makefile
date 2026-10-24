@@ -23,7 +23,7 @@ build: base
 	go build -o $(OUTPUT_FOLDER)/$(NAME) .
 
 run: base
-	GOWORK=off go run . $(ARGS)
+	GOWORK=off go run ./cmd/goxel.go $(ARGS)
 
 release: base
 	GOWORK=off go build -ldflags="-s -w" -o $(OUTPUT_FOLDER)/$(NAME) .

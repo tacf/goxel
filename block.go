@@ -1,4 +1,4 @@
-package main
+package goxel
 
 // Block is one voxel type.
 type Block uint8
@@ -41,7 +41,7 @@ func (b Block) Hardness() float32 {
 }
 
 // tileOf picks the atlas tile for one face of a block, in the order of the faces table.
-func tileOf(b Block, face int) Tile {
+func TileOf(b Block, face int) Tile {
 	switch b {
 	case Grass:
 		switch face {
@@ -77,5 +77,5 @@ func iconTile(b Block) Tile {
 	if b == Grass {
 		return TileGrassTop
 	}
-	return tileOf(b, 2)
+	return TileOf(b, 2)
 }

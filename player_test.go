@@ -1,8 +1,10 @@
-package main
+package goxel
 
 import (
 	"math"
 	"testing"
+
+	. "github.com/tacf/goxel/math"
 )
 
 func TestPlayerFallsAndRestsOnGround(t *testing.T) {
@@ -23,7 +25,7 @@ func TestPlayerFallsAndRestsOnGround(t *testing.T) {
 func TestPlayerCannotLeaveWorld(t *testing.T) {
 	w := newTestWorld(t)
 	h := w.SurfaceHeight(2, 60)
-	p := Player{Pos: Vec3{2.5, float32(h + 1), 60.5}, Yaw: -pi / 2}
+	p := Player{Pos: Vec3{2.5, float32(h + 1), 60.5}, Yaw: -PI / 2}
 	for range 300 {
 		p.Update(w, Input{Forward: 1}, 1.0/60.0)
 	}

@@ -1,11 +1,14 @@
-package main
+package goxel
 
-import "testing"
+import ("testing"
+	. "github.com/tacf/goxel/renderer"
+	. "github.com/tacf/goxel/math"
+)
 
 // newTestGame builds a game around a test world, without any GPU resources.
 func newTestGame(t *testing.T, slot int) *Game {
 	t.Helper()
-	return &Game{world: newTestWorld(t), arm: NewViewModel(), selected: slot}
+	return &Game{world: newTestWorld(t), selected: slot}
 }
 
 // flatSpot returns a column and the y of its surface block.
@@ -18,12 +21,13 @@ func TestPlaceBuildsOnTheFaceUnderTheCrosshair(t *testing.T) {
 	g := newTestGame(t, 3) // stone
 	x, y, z := flatSpot(g)
 	g.player.Pos = Vec3{10.5, float32(y + 1), 10.5}
+	g.player.arm = NewViewModel()
 	g.target = Hit{Pos: [3]int{x, y, z}, Normal: [3]int{0, 1, 0}}
 	g.place()
 	if got := g.world.Get(x, y+1, z); got != Stone {
 		t.Fatalf("block above the target is %v, want Stone", got)
 	}
-	if g.cooldown <= 0 || g.arm.swing < 0 {
+	if g.cooldown <= 0 || g.player.arm.swing < 0 {
 		t.Error("placing should start the cooldown and the swing")
 	}
 }

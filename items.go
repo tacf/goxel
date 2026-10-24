@@ -1,4 +1,4 @@
-package main
+package goxel
 
 // ItemKind tells apart what a hotbar slot holds.
 type ItemKind uint8

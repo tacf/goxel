@@ -1,4 +1,6 @@
-package main
+package goxel
+
+import . "github.com/tacf/goxel/math"
 
 const (
 	crackTile = 16
@@ -18,7 +20,7 @@ type Birth [crackTile][crackTile]float32
 func birthAt(x, y int) float32 {
 	dx := float32(x) - crackCenter
 	dy := float32(y) - crackCenter
-	return 0.03 + 0.9*sqrt(dx*dx+dy*dy)/crackReach
+	return 0.03 + 0.9*Sqrt(dx*dx+dy*dy)/crackReach
 }
 
 // xorshift is a tiny deterministic random generator.
@@ -44,11 +46,11 @@ func generateCracks(birth *Birth, seed uint32) {
 
 	const arms = 7
 	var angles [arms]float32
-	spin := state.float() * 2 * pi
+	spin := state.float() * 2 * PI
 	for k := range arms {
 		// One arm per equal sector, wobbled inside it so no direction is favoured.
 		slot := (float32(k) + 0.5 + (state.float()-0.5)*0.25) / arms
-		angles[k] = spin + slot*2*pi
+		angles[k] = spin + slot*2*PI
 		steps := 9 + int(state.next()%2)
 		walkCrack(birth, &state, crackCenter, crackCenter, angles[k], steps, 0)
 	}
@@ -61,16 +63,16 @@ func generateCracks(birth *Birth, seed uint32) {
 		from := angles[k] + 0.12
 		var wrapAngle float32
 		if k+1 == arms {
-			wrapAngle = 2 * pi
+			wrapAngle = 2 * PI
 		}
 		to := angles[(k+1)%arms] + wrapAngle - 0.12
 		span := to - from
-		count := int(ceil(abs(span) * ringRadius))
+		count := int(Ceil(Abs(span) * ringRadius))
 		a, r := from, float32(ringRadius)
 		for range count {
 			a += span / float32(count)
 			r += (state.float() - 0.5) * 0.7
-			markCrack(birth, int(floor(crackCenter+cos(a)*r)), int(floor(crackCenter+sin(a)*r)))
+			markCrack(birth, int(Floor(crackCenter+Cos(a)*r)), int(Floor(crackCenter+Sin(a)*r)))
 		}
 	}
 }
@@ -80,9 +82,9 @@ func walkCrack(birth *Birth, state *xorshift, x0, y0, heading float32, steps, de
 	x, y, angle := x0, y0, heading
 	for i := range steps {
 		angle += (state.float()-0.5)*0.6 + (heading-angle)*0.25
-		x += cos(angle)
-		y += sin(angle)
-		px, py := int(floor(x)), int(floor(y))
+		x += Cos(angle)
+		y += Sin(angle)
+		px, py := int(Floor(x)), int(Floor(y))
 		if px < 0 || py < 0 || px >= crackTile || py >= crackTile {
 			return
 		}

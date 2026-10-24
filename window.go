@@ -1,4 +1,4 @@
-package main
+package goxel
 
 import (
 	"fmt"
@@ -17,7 +17,7 @@ const (
 
 // Wayland compositors choose the window size after creation and clients may not
 // position windows, so raylib reports a warning for the centring it attempts.
-func quietWaylandWarnings() {
+func QuietWaylandWarnings() {
 	rl.SetTraceLogCallback(func(level int, text string) {
 		if strings.Contains(text, "window position") {
 			return
@@ -52,7 +52,7 @@ func (s *windowSync) Update() {
 
 // clearDepth clears the depth buffer and leaves the picture untouched, so a
 // following pass is not hidden by, or clipped into, what was drawn before.
-func clearDepth() {
+func ClearDepth() {
 	rl.DrawRenderBatchActive()
 	rl.ColorMask(false, false, false, false)
 	rl.ClearScreenBuffers()

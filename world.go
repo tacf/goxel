@@ -1,6 +1,10 @@
-package main
+package goxel
 
-import "math"
+import (
+	"math"
+
+	. "github.com/tacf/goxel/math"
+)
 
 const (
 	ChunkSize = 16
@@ -113,7 +117,7 @@ func (w *World) Raycast(origin, dir Vec3, maxDist float32) (Hit, bool) {
 	var tMax, tDelta Vec3
 	inf := float32(math.Inf(1))
 	for a := range 3 {
-		cell[a] = int(floor(origin[a]))
+		cell[a] = int(Floor(origin[a]))
 		switch {
 		case dir[a] > 0:
 			step[a] = 1
