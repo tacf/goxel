@@ -4,7 +4,7 @@ NAME = goxel
 OUTPUT_FOLDER = bin
 
 .DEFAULT_GOAL := help
-.PHONY: help build run release test textures clean
+.PHONY: help build run release test texview clean
 
 help:
 	@printf '%s\n' \
@@ -21,13 +21,13 @@ base:
 
 build: base
 	export GOWORK=off
-	go build -o $(OUTPUT_FOLDER)/$(NAME) ./cmd/goxel.go
+	go build -o $(OUTPUT_FOLDER)/$(NAME) ./cmd/goxel
 
 run: base
-	GOWORK=off go run ./cmd/goxel.go $(ARGS)
+	GOWORK=off go run ./cmd/goxel $(ARGS)
 
 release: base
-	GOWORK=off go build -ldflags="-s -w" -o $(OUTPUT_FOLDER)/$(NAME) ./cmd/goxel.go
+	GOWORK=off go build -ldflags="-s -w" -o $(OUTPUT_FOLDER)/$(NAME) ./cmd/goxel
 
 texview:
 	GOWORK=off go run ./cmd/texview
