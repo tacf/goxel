@@ -38,19 +38,24 @@ type Chunk struct {
 type meshData struct {
 	verts  []float32
 	colors []uint8
-	uvs    []float32
+	// uvs are the coordinates inside a tile, 0..1.
+	uvs []float32
+	// layers hold the tile array layer in x, as the second texture coordinate.
+	layers []float32
 }
 
 func (m *meshData) reset() {
-	m.verts, m.colors, m.uvs = m.verts[:0], m.colors[:0], m.uvs[:0]
+	m.verts, m.colors = m.verts[:0], m.colors[:0]
+	m.uvs, m.layers = m.uvs[:0], m.layers[:0]
 }
 
 func (m *meshData) vertexCount() int { return len(m.verts) / 3 }
 
-func (m *meshData) addVertex(pos Vec3, rgba [4]uint8, uv [2]float32) {
+func (m *meshData) addVertex(pos Vec3, rgba [4]uint8, uv [2]float32, layer Tile) {
 	m.verts = append(m.verts, pos[:]...)
 	m.colors = append(m.colors, rgba[:]...)
 	m.uvs = append(m.uvs, uv[:]...)
+	m.layers = append(m.layers, float32(layer), 0)
 }
 
 // Close releases the GPU meshes.
@@ -137,6 +142,7 @@ func (w *World) uploadChunk(chunk *Chunk) {
 		Vertices:      &w.scratch.verts[0],
 		Colors:        &w.scratch.colors[0],
 		Texcoords:     &w.scratch.uvs[0],
+		Texcoords2:    &w.scratch.layers[0],
 	}
 	rl.UploadMesh(&mesh, false)
 	// The scratch arrays are reused, so drop the pointers and keep the GPU handles only.
@@ -166,7 +172,7 @@ func (w *World) addBlockFaces(b Block, x, y, z int) {
 		}
 		t1, t2 := (axis+1)%3, (axis+2)%3
 		base := [3]int{nx, ny, nz}
-		rect := tileRect(tileOf(b, fi))
+		tile := tileOf(b, fi)
 
 		var pos [4]Vec3
 		var ao [4]int
@@ -190,7 +196,7 @@ func (w *World) addBlockFaces(b Block, x, y, z int) {
 			// Colour is only light, the texture supplies the hue.
 			light := uint8(clamp(face.Shade*aoLevels[ao[k]]*jitter*255, 0, 255))
 			rgba[k] = [4]uint8{light, light, light, 255}
-			uv[k] = faceUV(fi, v, rect)
+			uv[k] = faceUV(fi, v)
 		}
 
 		// Split along the diagonal that hides the least interpolation artefacts.
@@ -199,7 +205,7 @@ func (w *World) addBlockFaces(b Block, x, y, z int) {
 			order = [6]int{1, 2, 3, 1, 3, 0}
 		}
 		for _, k := range order {
-			w.scratch.addVertex(pos[k], rgba[k], uv[k])
+			w.scratch.addVertex(pos[k], rgba[k], uv[k], tile)
 		}
 	}
 }
@@ -218,9 +224,8 @@ func vertexAO(side1, side2, corner bool) int {
 	return level
 }
 
-// faceUV maps a face corner onto its atlas tile, inset slightly to avoid sampling neighbours.
-func faceUV(face int, v [3]int, r Rect) [2]float32 {
-	const inset = 0.02
+// faceUV maps a face corner onto its tile, 0..1 in both directions.
+func faceUV(face int, v [3]int) [2]float32 {
 	a := float32(v[0])
 	if face == 2 || face == 3 {
 		a = float32(v[2])
@@ -229,8 +234,5 @@ func faceUV(face int, v [3]int, r Rect) [2]float32 {
 	if face < 2 {
 		b = float32(v[2])
 	}
-	return [2]float32{
-		lerp(r.U0, r.U1, inset+a*(1-2*inset)),
-		lerp(r.V0, r.V1, inset+b*(1-2*inset)),
-	}
+	return [2]float32{a, b}
 }

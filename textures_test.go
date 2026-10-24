@@ -34,3 +34,23 @@ func TestAtlasDeterministic(t *testing.T) {
 		t.Error("atlas differs between runs")
 	}
 }
+
+func TestTileLayersMatchAtlasTiles(t *testing.T) {
+	atlas := make([]byte, AtlasBytes)
+	generateAtlas(atlas)
+	layers := tileLayers(atlas)
+	const layerBytes = TileSize * TileSize * 4
+	if len(layers) != int(tileCount)*layerBytes {
+		t.Fatalf("got %d bytes, want %d layers of %d", len(layers), tileCount, layerBytes)
+	}
+	for tile := range tileCount {
+		ox, oy := tileOrigin(tile)
+		layer := layers[int(tile)*layerBytes:][:layerBytes]
+		for y := range TileSize {
+			want := atlas[((oy+y)*AtlasSize+ox)*4:][:TileSize*4]
+			if !bytes.Equal(layer[y*TileSize*4:][:TileSize*4], want) {
+				t.Fatalf("tile %d row %d differs from the atlas", tile, y)
+			}
+		}
+	}
+}

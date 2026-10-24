@@ -2,6 +2,7 @@ package main
 
 import (
 	"image/color"
+	"log"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
@@ -63,7 +64,10 @@ type Game struct {
 	arm      *ViewModel
 	cracks   *Cracks
 	material rl.Material
-	atlas    rl.Texture2D
+	shader   rl.Shader
+	// tiles feeds the block shader, atlas serves the 2D drawing of the hotbar and held block.
+	tiles TileArray
+	atlas rl.Texture2D
 
 	selected  int
 	cooldown  float32
@@ -78,17 +82,25 @@ type Game struct {
 
 // NewGame loads the world and the GPU resources. The window must already exist.
 func NewGame() *Game {
-	atlas := loadAtlas()
+	pixels := make([]byte, AtlasBytes)
+	generateAtlas(pixels)
+	tiles, err := NewTileArray(tileLayers(pixels), TileSize, int(tileCount))
+	if err != nil {
+		log.Fatal(err)
+	}
+	shader := rl.LoadShaderFromMemory(blockVertexShader, blockFragmentShader)
 	// Set up on a local, cgo rejects a pointer into a heap struct that holds Go pointers.
 	material := rl.LoadMaterialDefault()
-	rl.SetMaterialTexture(&material, rl.MapDiffuse, atlas)
+	material.Shader = shader
 
 	g := &Game{
 		world:     NewWorld(1337),
 		arm:       NewViewModel(),
 		cracks:    LoadCracks(),
 		material:  material,
-		atlas:     atlas,
+		shader:    shader,
+		tiles:     tiles,
+		atlas:     loadAtlas(pixels),
 		showDebug: true,
 	}
 
@@ -106,6 +118,8 @@ func (g *Game) Close() {
 	g.world.Close()
 	g.cracks.Unload()
 	rl.UnloadTexture(g.atlas)
+	g.tiles.Unload()
+	rl.UnloadShader(g.shader)
 }
 
 func (g *Game) holding() Item { return hotbar[g.selected] }
@@ -246,6 +260,7 @@ func (g *Game) Draw() {
 	rl.BeginDrawing()
 	rl.ClearBackground(skyColor)
 	rl.BeginMode3D(camera)
+	g.tiles.Bind()
 	g.world.Draw(g.material, g.player.Pos[0], g.player.Pos[2], viewDistance)
 	if g.hasTarget {
 		rl.DrawCubeWiresV(
@@ -263,15 +278,10 @@ func (g *Game) Draw() {
 	rl.EndDrawing()
 }
 
-// loadAtlas builds the procedural texture atlas and uploads it with mipmaps.
-func loadAtlas() rl.Texture2D {
-	pixels := make([]byte, AtlasBytes)
-	generateAtlas(pixels)
+// loadAtlas uploads the atlas for 2D drawing. It is sampled without filtering or mipmaps.
+func loadAtlas(pixels []byte) rl.Texture2D {
 	img := rl.NewImage(pixels, AtlasSize, AtlasSize, 1, rl.UncompressedR8g8b8a8)
 	atlas := rl.LoadTextureFromImage(img)
-	rl.GenTextureMipmaps(&atlas)
-	// Crisp pixels up close, smooth mip blending at a distance.
-	rl.TextureParameters(atlas.ID, rl.TextureMagFilter, rl.TextureFilterNearest)
-	rl.TextureParameters(atlas.ID, rl.TextureMinFilter, rl.TextureFilterNearestMipLinear)
+	rl.SetTextureFilter(atlas, rl.FilterPoint)
 	return atlas
 }

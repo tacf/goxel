@@ -33,13 +33,30 @@ func tileRect(t Tile) Rect {
 	return Rect{col * step, row * step, (col + 1) * step, (row + 1) * step}
 }
 
-// Pixel coordinates of a tile (x, y, w, h), for 2D drawing.
+// tileOrigin is the top left pixel of a tile in the atlas.
+func tileOrigin(t Tile) (x, y int) {
+	return int(t) % AtlasCols * TileSize, int(t) / AtlasCols * TileSize
+}
+
+// tilePixels is the pixel rectangle of a tile (x, y, w, h), for 2D drawing.
 func tilePixels(t Tile) [4]float32 {
-	return [4]float32{
-		float32(int(t) % AtlasCols * TileSize),
-		float32(int(t) / AtlasCols * TileSize),
-		TileSize, TileSize,
+	x, y := tileOrigin(t)
+	return [4]float32{float32(x), float32(y), TileSize, TileSize}
+}
+
+// tileLayers cuts the atlas into one RGBA image per tile, in tile order.
+// Layer i belongs to Tile(i) and is what the tile array texture stores.
+func tileLayers(atlas []byte) []byte {
+	const row = TileSize * 4
+	layers := make([]byte, 0, int(tileCount)*TileSize*row)
+	for t := range tileCount {
+		ox, oy := tileOrigin(t)
+		for y := range TileSize {
+			start := ((oy+y)*AtlasSize + ox) * 4
+			layers = append(layers, atlas[start:start+row]...)
+		}
 	}
+	return layers
 }
 
 type color3 [3]float32
@@ -48,8 +65,7 @@ type color3 [3]float32
 func generateAtlas(pixels []byte) {
 	clear(pixels)
 	for t := range tileCount {
-		ox := int(t) % AtlasCols * TileSize
-		oy := int(t) / AtlasCols * TileSize
+		ox, oy := tileOrigin(t)
 		for py := range TileSize {
 			for px := range TileSize {
 				c := tilePixel(t, px, py)

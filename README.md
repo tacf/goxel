@@ -1,6 +1,6 @@
 # Zube (Go)
 
-A small Minecraft style voxel game written in Go with raylib, ported from the Zig version.
+A small Minecraft style voxel game written in Go with raylib.
 
 ## Build
 
@@ -16,24 +16,20 @@ Without `make`, use `go run .`, `go build` and `go test ./...`.
 
 ## Controls
 
-| Input | Action |
-|---|---|
-| W A S D | Move |
-| Mouse | Look |
-| Space | Jump (fly up while flying) |
-| Left Shift | Fly down |
-| Left Ctrl | Sprint |
-| F | Toggle flying |
-| Left click (hold) | Mine the targeted block, cracks show the progress |
-| Right click | Place the held block |
-| 1 to 9 or mouse wheel | Select pickaxe or block |
-| F3 | Toggle debug text |
-| Esc | Quit |
-
-## Mining
-
-Each block has a hardness. Holding left click swings the tool and every swing that lands deals damage, shown as branching cracks that grow with each hit. The block breaks at full damage. The pickaxe is much faster on stone and cobblestone. A first person arm holds the selected item and swings while mining or placing.
+| Input                 | Action                                            |
+| --------------------- | ------------------------------------------------- |
+| W A S D               | Move                                              |
+| Mouse                 | Look                                              |
+| Space                 | Jump (fly up while flying)                        |
+| Left Shift            | Fly down                                          |
+| Left Ctrl             | Sprint                                            |
+| F                     | Toggle flying                                     |
+| Left click (hold)     | Mine the targeted block, cracks show the progress |
+| Right click           | Place the held block                              |
+| 1 to 9 or mouse wheel | Select pickaxe or block                           |
+| F3                    | Toggle debug text                                 |
+| Esc                   | Quit                                              |
 
 ## Textures
 
-All block textures are generated at startup in `textures.go`, with no image files. Each 16 by 16 tile is built from tiling value noise, fractal noise and Worley (Voronoi) noise. For example cobblestone uses warped Voronoi cells with mortar lines, and grass layers fractal noise with blade streaks. The tiles are packed into one atlas.
+All block textures are generated at startup in `textures.go`, with no image files. Each 16 by 16 tile is built from tiling value noise, fractal noise and Worley (Voronoi) noise. For example cobblestone uses warped Voronoi cells with mortar lines, and grass layers fractal noise with blade streaks. The world draws them from an OpenGL array texture with one layer per tile, so filtering and mipmaps never bleed between neighbouring tiles. A packed atlas is kept for the hotbar icons and the held block.
