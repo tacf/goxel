@@ -1,10 +1,13 @@
 # goxel (Go)
 
-A small Minecraft style voxel game written in Go with raylib.
+A small Minecraft style voxel game written in Go with raylib. It's an
+experiment to test generating everything including textures through
+procedural (noise noise noise) generation.
 
 ## Build
 
-Needs Go 1.27 and a C compiler, since raylib is built from source through cgo. On Linux install the X11 or Wayland development headers and OpenGL.
+Needs Go 1.27 and a C compiler, since raylib is built from source through cgo.
+ On Linux install the X11 or Wayland development headers and OpenGL.
 
 ```sh
 make run        # Build and run
@@ -32,8 +35,15 @@ Without `make`, use `go run .`, `go build` and `go test ./...`.
 
 ## Noise
 
-Terrain and textures use FastNoiseLite, vendored unmodified in `internal/fastnoise`. The terrain is fractal OpenSimplex2 noise. Each 16 by 16 texture tile is painted from fractal value noise that repeats every tile, so neighbouring blocks join without seams. Cobblestone adds warped Voronoi cells with mortar lines.
+Terrain and textures use FastNoiseLite, vendored unmodified in 
+`internal/fastnoise`. The terrain is fractal OpenSimplex2 noise. Each 16 by 16
+texture tile is painted from fractal value noise that repeats every tile, so
+neighbouring blocks join without seams. Cobblestone adds warped Voronoi cells
+with mortar lines.
 
 ## Textures
 
-All block textures are generated at startup in `textures.go`, with no image files. The world draws them from an OpenGL array texture with one layer per tile, so filtering and mipmaps never bleed between neighbouring tiles. A packed atlas is kept for the hotbar icons and the held block.
+All block textures are generated at startup in `textures.go`, with no image
+files. The world draws them from an OpenGL array texture with one layer per
+tile, so filtering and mipmaps never bleed between neighbouring tiles. A
+packed atlas is kept for the hotbar icons and the held block.
