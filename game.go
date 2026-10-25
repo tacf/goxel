@@ -3,9 +3,8 @@ package goxel
 
 import (
 	"github.com/tacf/goxel/game"
+	"github.com/tacf/goxel/platform"
 	"github.com/tacf/goxel/renderer"
-
-	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
 const mouseSensitivity = 0.0025
@@ -14,7 +13,6 @@ const mouseSensitivity = 0.0025
 type Game struct {
 	session  *game.Session
 	renderer *renderer.Renderer
-	winSync  windowSync
 }
 
 // NewGame loads the world and the GPU resources. The window must already exist.
@@ -29,56 +27,54 @@ func NewGame() *Game {
 func (g *Game) Close() { g.renderer.Close() }
 
 // Update reads input and advances the simulation by dt seconds.
-func (g *Game) Update(dt float32) {
-	g.winSync.Update()
-	g.session.Update(readControls(), dt)
+func (g *Game) Update(input platform.Input, dt float32) {
+	g.session.Update(readControls(input), dt)
 	g.renderer.Update(g.session, dt)
 }
 
 func (g *Game) Draw() { g.renderer.Draw(g.session) }
 
 // readControls samples the keyboard and the mouse.
-func readControls() game.Controls {
-	mouse := rl.GetMouseDelta()
+func readControls(input platform.Input) game.Controls {
 	c := game.Controls{
-		Move:        readMovement(),
-		Yaw:         mouse.X * mouseSensitivity,
-		Pitch:       -mouse.Y * mouseSensitivity,
-		ToggleFly:   rl.IsKeyPressed(rl.KeyF),
-		ToggleDebug: rl.IsKeyPressed(rl.KeyF3),
+		Move:        readMovement(input),
+		Yaw:         input.MouseDX * mouseSensitivity,
+		Pitch:       -input.MouseDY * mouseSensitivity,
+		ToggleFly:   input.Pressed(platform.KeyF),
+		ToggleDebug: input.Pressed(platform.KeyF3),
 		Slot:        -1,
-		Mine:        rl.IsMouseButtonDown(rl.MouseButtonLeft),
-		Place:       rl.IsMouseButtonDown(rl.MouseButtonRight),
+		Mine:        input.MouseDown(platform.MouseLeft),
+		Place:       input.MouseDown(platform.MouseRight),
 	}
 	for i := range game.Hotbar {
-		if rl.IsKeyPressed(int32(rl.KeyOne + i)) {
+		if input.Pressed(platform.KeyOne + platform.Key(i)) {
 			c.Slot = i
 		}
 	}
-	if wheel := rl.GetMouseWheelMove(); wheel > 0 {
+	if input.WheelY > 0 {
 		c.Scroll = -1
-	} else if wheel < 0 {
+	} else if input.WheelY < 0 {
 		c.Scroll = 1
 	}
 	return c
 }
 
-func readMovement() game.Input {
+func readMovement(input platform.Input) game.Input {
 	var in game.Input
-	if rl.IsKeyDown(rl.KeyW) {
+	if input.Down(platform.KeyW) {
 		in.Forward++
 	}
-	if rl.IsKeyDown(rl.KeyS) {
+	if input.Down(platform.KeyS) {
 		in.Forward--
 	}
-	if rl.IsKeyDown(rl.KeyD) {
+	if input.Down(platform.KeyD) {
 		in.Strafe++
 	}
-	if rl.IsKeyDown(rl.KeyA) {
+	if input.Down(platform.KeyA) {
 		in.Strafe--
 	}
-	in.Jump = rl.IsKeyDown(rl.KeySpace)
-	in.Descend = rl.IsKeyDown(rl.KeyLeftShift)
-	in.Sprint = rl.IsKeyDown(rl.KeyLeftControl)
+	in.Jump = input.Down(platform.KeySpace)
+	in.Descend = input.Down(platform.KeyLeftShift)
+	in.Sprint = input.Down(platform.KeyLeftControl)
 	return in
 }

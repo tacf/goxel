@@ -2,11 +2,8 @@
 package main
 
 import (
-	"runtime"
-
 	goxel "github.com/tacf/goxel"
-
-	rl "github.com/gen2brain/raylib-go/raylib"
+	"github.com/tacf/goxel/platform"
 )
 
 const (
@@ -14,25 +11,19 @@ const (
 	windowHeight = 720
 )
 
-func init() {
-	// GLFW must run on the main thread.
-	runtime.LockOSThread()
-}
-
 func main() {
-	rl.SetTraceLogLevel(rl.LogWarning)
-	goxel.QuietWaylandWarnings()
-	// High DPI makes raylib size its viewport from the real framebuffer on scaled displays.
-	rl.SetConfigFlags(rl.FlagMsaa4xHint | rl.FlagVsyncHint | rl.FlagWindowResizable | rl.FlagWindowHighdpi)
-	rl.InitWindow(windowWidth, windowHeight, "goxel")
-	defer rl.CloseWindow()
-	rl.DisableCursor()
+	runtime, window := platform.Init(platform.Options{
+		Title: "goxel", Width: windowWidth, Height: windowHeight,
+		Flags: platform.WindowMSAA4x | platform.WindowVSync | platform.WindowResizable | platform.WindowHighDPI,
+	})
+	defer runtime.Close()
 
 	game := goxel.NewGame()
 	defer game.Close()
 
-	for !rl.WindowShouldClose() {
-		game.Update(min(rl.GetFrameTime(), 0.05))
+	for !window.ShouldClose() {
+		window.SyncSize()
+		game.Update(window.PollInput(), window.FrameTime(0.05))
 		game.Draw()
 	}
 }

@@ -3,15 +3,13 @@ package main
 
 import (
 	"fmt"
-	"runtime"
 	"strings"
 
 	"github.com/tacf/goxel/game"
 	"github.com/tacf/goxel/renderer"
 
-	goxel "github.com/tacf/goxel"
-
 	rl "github.com/gen2brain/raylib-go/raylib"
+	"github.com/tacf/goxel/platform"
 )
 
 const (
@@ -26,17 +24,12 @@ const (
 // faceNames follow the order of the voxel face table.
 var faceNames = [6]string{"top", "bottom", "+x", "-x", "+z", "-z"}
 
-func init() {
-	// GLFW must run on the main thread.
-	runtime.LockOSThread()
-}
-
 func main() {
-	rl.SetTraceLogLevel(rl.LogWarning)
-	goxel.QuietWaylandWarnings()
-	rl.SetConfigFlags(rl.FlagVsyncHint | rl.FlagWindowHighdpi)
-	rl.InitWindow(windowWidth, windowHeight, "goxel - Texture Viewer")
-	defer rl.CloseWindow()
+	runtime, window := platform.Init(platform.Options{
+		Title: "goxel - Texture Viewer", Width: windowWidth, Height: windowHeight,
+		Flags: platform.WindowVSync | platform.WindowHighDPI,
+	})
+	defer runtime.Close()
 
 	pixels := make([]byte, renderer.AtlasBytes)
 	renderer.GenerateAtlas(pixels)
@@ -45,20 +38,19 @@ func main() {
 
 	uses := tileUses()
 	current := renderer.Tile(0)
-	for !rl.WindowShouldClose() {
-		current = step(current)
+	for !window.ShouldClose() {
+		current = step(current, window.PollInput())
 		draw(atlas, current, uses[current])
 	}
 }
 
 // step moves the selection with the arrow keys or A and D.
-func step(t renderer.Tile) renderer.Tile {
+func step(t renderer.Tile, input platform.Input) renderer.Tile {
 	n := int(renderer.TileCount)
-	next := func(key int32) bool { return rl.IsKeyPressed(key) || rl.IsKeyPressedRepeat(key) }
 	switch {
-	case next(rl.KeyRight):
+	case input.Repeated(platform.KeyRight):
 		return renderer.Tile((int(t) + 1) % n)
-	case next(rl.KeyLeft):
+	case input.Repeated(platform.KeyLeft):
 		return renderer.Tile((int(t) + n - 1) % n)
 	}
 	return t
